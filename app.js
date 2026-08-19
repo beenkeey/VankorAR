@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MindARThree } from "mindar-image-three";
 
-const IMAGE_TARGET_SRC = "./assets/card.mind";
+const IMAGE_TARGET_SRC = "./assets/vankor-land.mind";
 const OIL_RIG_SRC = "./assets/models/oil-rig-optimized.glb";
 const OIL_RIG_FOOTPRINT = 0.6;
 
