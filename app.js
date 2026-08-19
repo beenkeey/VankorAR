@@ -1,27 +1,43 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MindARThree } from "mindar-image-three";
 
 const IMAGE_TARGET_SRC = "./assets/card.mind";
+const OIL_RIG_SRC = "./assets/models/oil-rig-optimized.glb";
+const OIL_RIG_FOOTPRINT = 0.6;
 
 const startScreen = document.querySelector("#start-screen");
 const startButton = document.querySelector("#start-button");
 const stopButton = document.querySelector("#stop-button");
 const arControls = document.querySelector("#ar-controls");
 const errorMessage = document.querySelector("#error-message");
+const arErrorMessage = document.querySelector("#ar-error-message");
 
 let mindarThree = null;
+let arAnchor = null;
+let oilRigModel = null;
+let oilRigLoadPromise = null;
 let isStarting = false;
 let isRunning = false;
-let cube = null;
 
 function showError(message) {
     errorMessage.textContent = message;
     errorMessage.hidden = false;
+
+    if (arErrorMessage) {
+        arErrorMessage.textContent = message;
+        arErrorMessage.hidden = false;
+    }
 }
 
 function clearError() {
     errorMessage.textContent = "";
     errorMessage.hidden = true;
+
+    if (arErrorMessage) {
+        arErrorMessage.textContent = "";
+        arErrorMessage.hidden = true;
+    }
 }
 
 function setBusy(isBusy) {
@@ -88,16 +104,61 @@ function createScene() {
         uiError: "yes"
     });
 
-    const anchor = mindarThree.addAnchor(0);
+    arAnchor = mindarThree.addAnchor(0);
 
-    const geometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
-    const material = new THREE.MeshNormalMaterial();
-    cube = new THREE.Mesh(geometry, material);
-    cube.position.set(0, 0, 0.2);
+    const { scene } = mindarThree;
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x4b4b4b, 1));
 
-    anchor.group.add(cube);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    directionalLight.position.set(0.5, 1, 1);
+    scene.add(directionalLight);
 
     return mindarThree;
+}
+
+function placeModelOnImageTarget(model) {
+    model.rotation.x = Math.PI / 2;
+    model.scale.set(1, 1, 1);
+    model.position.set(0, 0, 0);
+    model.updateMatrixWorld(true);
+
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const footprint = Math.max(size.x, size.y);
+
+    if (footprint > 0) {
+        model.scale.setScalar(OIL_RIG_FOOTPRINT / footprint);
+        model.updateMatrixWorld(true);
+        box.setFromObject(model);
+    }
+
+    model.position.set(
+        -(box.min.x + box.max.x) / 2,
+        -(box.min.y + box.max.y) / 2,
+        -box.min.z
+    );
+}
+
+function loadOilRigModel() {
+    if (oilRigModel) {
+        return Promise.resolve(oilRigModel);
+    }
+
+    if (!oilRigLoadPromise) {
+        const loader = new GLTFLoader();
+
+        oilRigLoadPromise = loader.loadAsync(OIL_RIG_SRC).then((gltf) => {
+            oilRigModel = gltf.scene;
+            placeModelOnImageTarget(oilRigModel);
+            return oilRigModel;
+        }).catch((error) => {
+            oilRigLoadPromise = null;
+            throw error;
+        });
+    }
+
+    return oilRigLoadPromise;
 }
 
 function stopRenderer() {
@@ -201,9 +262,6 @@ async function startAR() {
         await session.start();
 
         renderer.setAnimationLoop(() => {
-            if (cube) {
-                cube.rotation.y += 0.01;
-            }
             renderer.render(scene, camera);
         });
 
@@ -220,6 +278,21 @@ async function startAR() {
         cameraGuard.restore();
         isStarting = false;
         setBusy(false);
+    }
+
+    if (!isRunning) {
+        return;
+    }
+
+    try {
+        const model = await loadOilRigModel();
+
+        if (isRunning && arAnchor && model.parent !== arAnchor.group) {
+            arAnchor.group.add(model);
+        }
+    } catch (modelError) {
+        console.error("Ошибка загрузки GLB", modelError);
+        showError("Не удалось загрузить 3D-модель нефтяной буровой установки. Проверьте файл assets/models/oil-rig-optimized.glb и попробуйте снова.");
     }
 }
 

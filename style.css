@@ -91,6 +91,13 @@ body {
     z-index: 30;
 }
 
+#ar-error-message {
+    margin-top: 12px;
+    max-width: 280px;
+    color: #ff6b6b;
+    font-size: 14px;
+}
+
 .hidden {
     display: none !important;
 }
