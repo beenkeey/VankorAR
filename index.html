@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <title>Vankor AR</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+      }
+    }
+    </script>
+</head>
+
+<body>
+
+    <div id="ar-container"></div>
+
+    <div id="start-screen">
+        <h1>Ванкор AR</h1>
+        <p>Наведите камеру на изображение</p>
+
+        <p id="error-message" hidden></p>
+
+        <button id="start-button" type="button">
+            Запустить AR
+        </button>
+
+        <a id="marker-link" href="./assets/card.png" target="_blank" rel="noopener">
+            Открыть тестовый маркер
+        </a>
+    </div>
+
+    <div id="ar-controls" class="hidden">
+        <button id="stop-button" type="button">
+            Остановить AR
+        </button>
+    </div>
+
+    <script type="module" src="app.js"></script>
+
+</body>
+</html>

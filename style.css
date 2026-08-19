@@ -1,0 +1,96 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+body {
+    background: #111;
+}
+
+#ar-container {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+#start-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+
+    text-align: center;
+}
+
+#start-screen h1 {
+    margin-bottom: 10px;
+}
+
+#start-screen p {
+    margin-bottom: 30px;
+}
+
+#start-button,
+#stop-button {
+    padding: 15px 30px;
+
+    border: none;
+    border-radius: 10px;
+
+    font-size: 18px;
+
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#start-button:disabled,
+#stop-button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+#error-message {
+    margin-bottom: 20px;
+    max-width: 320px;
+    color: #ff6b6b;
+}
+
+#marker-link {
+    margin-top: 24px;
+    color: #9ecbff;
+    font-size: 14px;
+}
+
+#ar-controls {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 30;
+}
+
+.hidden {
+    display: none !important;
+}
