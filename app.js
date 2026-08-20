@@ -23,6 +23,15 @@ const USE_PROCEDURAL_BEAR = true;
 const USE_PROCEDURAL_WORKER = true;
 const USE_PROCEDURAL_RIG = true;
 
+const AR_STABILIZATION_DEBUG = false;
+const AR_SMOOTHING_SPEED_SLOW = 16;
+const AR_SMOOTHING_SPEED_FAST = 30;
+const AR_POSITION_DEADBAND = 0.0005;
+const AR_ROTATION_DEADBAND = 0.0012;
+const AR_POSITION_FAST_THRESHOLD = 0.01;
+const AR_ROTATION_FAST_THRESHOLD = 0.035;
+const AR_TARGET_HOLD_MS = 200;
+
 const startScreen = document.querySelector("#start-screen");
 const startButton = document.querySelector("#start-button");
 const stopButton = document.querySelector("#stop-button");
@@ -32,6 +41,7 @@ const arErrorMessage = document.querySelector("#ar-error-message");
 
 let mindarThree = null;
 let arAnchor = null;
+let arDisplayRoot = null;
 let gltfLoader = null;
 let oilRigModel = null;
 let oilRigLoadPromise = null;
@@ -42,6 +52,14 @@ let neftanikModel = null;
 let neftanikLoadPromise = null;
 let isStarting = false;
 let isRunning = false;
+let arStabHasPose = false;
+let arStabLastSeenMs = 0;
+let arStabDebugFrame = 0;
+
+const _arRawPos = new THREE.Vector3();
+const _arRawQuat = new THREE.Quaternion();
+const _arRawScale = new THREE.Vector3();
+const _arDisplayScale = new THREE.Vector3(1, 1, 1);
 
 function showError(message) {
     errorMessage.textContent = message;
@@ -130,6 +148,11 @@ function createScene() {
     });
 
     arAnchor = mindarThree.addAnchor(0);
+
+    arDisplayRoot = new THREE.Group();
+    arDisplayRoot.name = "arDisplayRoot";
+    arDisplayRoot.visible = false;
+    mindarThree.scene.add(arDisplayRoot);
 
     const { scene } = mindarThree;
     scene.add(new THREE.AmbientLight(0xffffff, 0.85));
@@ -221,9 +244,99 @@ function createPlacedModelGroup(visual, position, yaw = 0) {
     return group;
 }
 
+function resetArStabilization() {
+    arStabHasPose = false;
+    arStabLastSeenMs = 0;
+    arStabDebugFrame = 0;
+    _arDisplayScale.set(1, 1, 1);
+
+    if (arDisplayRoot) {
+        arDisplayRoot.visible = false;
+        arDisplayRoot.position.set(0, 0, 0);
+        arDisplayRoot.quaternion.identity();
+        arDisplayRoot.scale.set(1, 1, 1);
+    }
+}
+
+function updateArStabilization(delta) {
+    if (!arAnchor || !arDisplayRoot) {
+        return;
+    }
+
+    const now = performance.now();
+    const targetVisible = Boolean(arAnchor.visible);
+
+    if (targetVisible) {
+        arStabLastSeenMs = now;
+        arAnchor.group.matrix.decompose(_arRawPos, _arRawQuat, _arRawScale);
+
+        if (!arStabHasPose) {
+            arDisplayRoot.position.copy(_arRawPos);
+            arDisplayRoot.quaternion.copy(_arRawQuat);
+            arDisplayRoot.scale.copy(_arRawScale);
+            _arDisplayScale.copy(_arRawScale);
+            arStabHasPose = true;
+            arDisplayRoot.visible = true;
+            return;
+        }
+
+        if (_arRawScale.distanceToSquared(_arDisplayScale) > 1e-8) {
+            _arDisplayScale.copy(_arRawScale);
+            arDisplayRoot.scale.copy(_arRawScale);
+        }
+
+        const posError = arDisplayRoot.position.distanceTo(_arRawPos);
+        const rotError = arDisplayRoot.quaternion.angleTo(_arRawQuat);
+        let alpha = 0;
+
+        if (posError > AR_POSITION_DEADBAND || rotError > AR_ROTATION_DEADBAND) {
+            const speed = posError > AR_POSITION_FAST_THRESHOLD || rotError > AR_ROTATION_FAST_THRESHOLD
+                ? AR_SMOOTHING_SPEED_FAST
+                : AR_SMOOTHING_SPEED_SLOW;
+            alpha = 1 - Math.exp(-speed * delta);
+            arDisplayRoot.position.lerp(_arRawPos, alpha);
+            arDisplayRoot.quaternion.slerp(_arRawQuat, alpha);
+        }
+
+        arDisplayRoot.visible = true;
+
+        if (AR_STABILIZATION_DEBUG) {
+            arStabDebugFrame += 1;
+            if (arStabDebugFrame % 15 === 0) {
+                console.log(
+                    "[AR stab]",
+                    "raw",
+                    _arRawPos.x.toFixed(4),
+                    _arRawPos.y.toFixed(4),
+                    _arRawPos.z.toFixed(4),
+                    "smoothed",
+                    arDisplayRoot.position.x.toFixed(4),
+                    arDisplayRoot.position.y.toFixed(4),
+                    arDisplayRoot.position.z.toFixed(4),
+                    "posErr",
+                    posError.toFixed(5),
+                    "rotErr",
+                    rotError.toFixed(5),
+                    "alpha",
+                    alpha.toFixed(3)
+                );
+            }
+        }
+
+        return;
+    }
+
+    if (arStabHasPose && now - arStabLastSeenMs < AR_TARGET_HOLD_MS) {
+        arDisplayRoot.visible = true;
+        return;
+    }
+
+    arDisplayRoot.visible = false;
+}
+
 function addModelToAnchor(model) {
-    if (isRunning && arAnchor && model.parent !== arAnchor.group) {
-        arAnchor.group.add(model);
+    if (isRunning && arDisplayRoot && model.parent !== arDisplayRoot) {
+        arDisplayRoot.add(model);
     }
 }
 
@@ -398,6 +511,7 @@ async function startAR() {
         const { renderer, scene, camera } = session;
 
         await session.start();
+        resetArStabilization();
 
         if (!animationClock) {
             animationClock = new THREE.Clock();
@@ -408,6 +522,8 @@ async function startAR() {
         renderer.setAnimationLoop(() => {
             const delta = Math.min(animationClock.getDelta(), 0.05);
             const elapsedTime = animationClock.getElapsedTime();
+
+            updateArStabilization(delta);
 
             updateProceduralScene(delta, elapsedTime, {
                 bears: USE_PROCEDURAL_BEAR,
@@ -504,6 +620,7 @@ function stopAR() {
     }
 
     stopMindAR();
+    resetArStabilization();
     isRunning = false;
     showStartScreen();
 }

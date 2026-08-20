@@ -9,7 +9,8 @@ const TANKS_POSITION = { x: -0.22, y: -0.26, z: 0 };
 const CONTAINERS_POSITION = { x: -0.36, y: -0.08, z: 0 };
 const RIG_BASE_SIZE = 0.50;
 const RIG_SCALE = PROCEDURAL_RIG_FOOTPRINT / RIG_BASE_SIZE;
-const PIPE_RADIUS = 0.012;
+const PIPE_RADIUS = 0.0055;
+const PIPE_NOZZLE_RADIUS = 0.005;
 const PIPE_SUPPORT_TOP = 0.034;
 const PIPE_CENTER_Y = PIPE_SUPPORT_TOP + PIPE_RADIUS;
 const LADDER_RUNG_COUNT = 16;
@@ -35,8 +36,8 @@ export const SCENE_OBSTACLES = [
     { name: "containers", x: -0.36, y: -0.08, radiusX: 0.09, radiusY: 0.08 },
     { name: "pipesTanksPump", x: 0.06, y: -0.26, radiusX: 0.20, radiusY: 0.04 },
     { name: "pipesPumpRise", x: 0.255, y: -0.16, radiusX: 0.04, radiusY: 0.11 },
-    { name: "pipesPumpRig", x: 0.32, y: 0.048, radiusX: 0.04, radiusY: 0.10 },
-    { name: "pipesRigIn", x: 0.27, y: 0.138, radiusX: 0.07, radiusY: 0.04 },
+    { name: "pipesPumpRig", x: 0.32, y: 0.016, radiusX: 0.04, radiusY: 0.07 },
+    { name: "pipesRigIn", x: 0.27, y: 0.075, radiusX: 0.07, radiusY: 0.035 },
     { name: "pipesTanksHeader", x: -0.20, y: -0.213, radiusX: 0.10, radiusY: 0.04 }
 ];
 
@@ -74,7 +75,8 @@ const PIPE_CONNECTIONS = {
     tankHeaderEast: { x: -0.13, y: -0.213 },
     pumpIn: { x: 0.255, y: -0.06 },
     pumpOut: { x: 0.32, y: -0.042 },
-    rigIn: { x: 0.22, y: 0.138 }
+    rigApproach: { x: 0.22, y: 0.075 },
+    rigIn: { x: 0.22, y: 0.122 }
 };
 
 const PIPE_STUBS = [
@@ -83,7 +85,7 @@ const PIPE_STUBS = [
     { from: PIPE_CONNECTIONS.tankHeaderEast, inward: { x: 0, y: -1 } },
     { from: PIPE_CONNECTIONS.pumpIn, inward: { x: 1, y: 0 } },
     { from: PIPE_CONNECTIONS.pumpOut, inward: { x: 0, y: -1 } },
-    { from: PIPE_CONNECTIONS.rigIn, inward: { x: 0, y: 1 } }
+    { from: PIPE_CONNECTIONS.rigIn, inward: { x: 0, y: 1 }, length: 0.016 }
 ];
 
 const PIPE_LINES = [
@@ -107,7 +109,8 @@ const PIPE_LINES = [
         name: "pumpToRig",
         points: [
             PIPE_CONNECTIONS.pumpOut,
-            { x: 0.32, y: 0.138 },
+            { x: 0.32, y: 0.075 },
+            PIPE_CONNECTIONS.rigApproach,
             PIPE_CONNECTIONS.rigIn
         ]
     }
@@ -523,6 +526,9 @@ function createRng(seed) {
 function getFacingYaw(from, to) {
     return Math.atan2(to.x - from.x, -(to.y - from.y));
 }
+
+const CLIMB_YAW = getFacingYaw(RIG_CLIMB_PATH[0], RIG_CLIMB_PATH[5]);
+const DESCEND_YAW = CLIMB_YAW;
 
 function lerpAngle(current, target, maxStep) {
     let diff = target - current;
@@ -1189,7 +1195,7 @@ function moveAlongClimbPath(worker, delta, reverse) {
     worker.position.lerpVectors(start, end, data.climbT);
     worker.rotation.z = lerpAngle(
         worker.rotation.z,
-        getFacingYaw(start, end),
+        reverse ? DESCEND_YAW : CLIMB_YAW,
         3.4 * delta
     );
     return false;
@@ -1220,6 +1226,7 @@ function updateClimber(worker, delta) {
             data.mode = "climb";
             data.climbIndex = 0;
             data.climbT = 0;
+            worker.rotation.z = CLIMB_YAW;
             return true;
         }
 
@@ -1258,6 +1265,7 @@ function updateClimber(worker, delta) {
             data.climbIndex = 0;
             data.climbT = 0;
             data.climbLook = 0;
+            worker.rotation.z = DESCEND_YAW;
         }
         return true;
     }
@@ -1378,10 +1386,10 @@ export function createProceduralOilRig() {
     const visual = new THREE.Group();
     visual.name = "oilRig";
 
-    const height = 1.42;
+    const height = 1.50;
     const bottom = 0.18;
-    const top = 0.07;
-    const levels = [0.10, 0.36, 0.62, 0.88, 1.12, 1.32];
+    const top = 0.055;
+    const levels = [0.10, 0.36, 0.62, 0.88, 1.12, 1.32, 1.46];
     const corners = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
 
     const spreadAt = (y) => THREE.MathUtils.lerp(bottom, top, y / height);
@@ -1420,49 +1428,59 @@ export function createProceduralOilRig() {
     }
 
     const platformY = 1.12;
-    const ps = spreadAt(platformY) * 2 + 0.04;
-    addPart(visual, geo.box, mat.steel, 0, platformY, 0, ps, 0.025, ps);
-    addPart(visual, geo.box, mat.yellow, 0, platformY + 0.04, ps / 2, ps, 0.02, 0.016);
-    addPart(visual, geo.box, mat.yellow, 0, platformY + 0.04, -ps / 2, ps, 0.02, 0.016);
-    addPart(visual, geo.box, mat.yellow, ps / 2, platformY + 0.04, 0, 0.016, 0.02, ps);
-    addPart(visual, geo.box, mat.yellow, -ps / 2, platformY + 0.04, 0, 0.016, 0.02, ps);
+    const ps = spreadAt(platformY) * 2 + 0.03;
+    addPart(visual, geo.box, mat.steel, 0, platformY, 0, ps, 0.022, ps);
+    addPart(visual, geo.box, mat.steelLight, 0, platformY + 0.014, 0, ps * 0.88, 0.006, ps * 0.88);
+    addPart(visual, geo.box, mat.yellow, 0, platformY + 0.018, 0, ps * 0.06, 0.004, ps * 0.82);
 
-    const crownY = 1.16;
-    const deck = spreadAt(crownY) * 2 + 0.10;
-    addPart(visual, geo.box, mat.steelDark, 0, crownY, 0, deck, 0.03, deck);
-    addPart(visual, geo.box, mat.steelLight, 0, crownY + 0.018, 0, deck * 0.92, 0.008, deck * 0.92);
-    addPart(visual, geo.box, mat.yellow, 0, crownY + 0.022, 0, deck * 0.08, 0.004, deck * 0.88);
-    addPart(visual, geo.box, mat.yellow, 0.03, crownY + 0.022, 0, deck * 0.04, 0.004, deck * 0.88);
-
-    const railH = 0.12;
-    const half = deck * 0.48;
+    const railH = 0.11;
+    const railTop = platformY + 0.02 + railH;
+    const half = ps * 0.48;
     const posts = [
         [half, half], [half, -half], [-half, -half], [-half, half],
-        [0, half], [0, -half], [half, 0], [-half, 0]
+        [0, -half], [half, 0], [-half, 0],
+        [-half * 0.45, half], [half * 0.45, half]
     ];
     posts.forEach(([px, pz]) => {
-        addPart(visual, geo.cylLow, mat.yellow, px, crownY + 0.03 + railH * 0.5, pz, 0.008, railH, 0.008);
+        addPart(visual, geo.cylLow, mat.yellow, px, platformY + 0.02 + railH * 0.5, pz, 0.007, railH, 0.007);
     });
-    addPart(visual, geo.box, mat.yellow, 0, crownY + 0.03 + railH, half, deck * 0.96, 0.012, 0.012);
-    addPart(visual, geo.box, mat.yellow, 0, crownY + 0.03 + railH, -half, deck * 0.96, 0.012, 0.012);
-    addPart(visual, geo.box, mat.yellow, half, crownY + 0.03 + railH, 0, 0.012, 0.012, deck * 0.96);
-    addPart(visual, geo.box, mat.yellow, -half, crownY + 0.03 + railH, 0, 0.012, 0.012, deck * 0.96);
-    addPart(visual, geo.box, mat.yellow, 0, crownY + 0.03 + railH * 0.55, half, deck * 0.96, 0.008, 0.008);
-    addPart(visual, geo.box, mat.yellow, 0, crownY + 0.03 + railH * 0.55, -half, deck * 0.96, 0.008, 0.008);
+    addPart(visual, geo.box, mat.yellow, 0, railTop, -half, ps * 0.94, 0.01, 0.01);
+    addPart(visual, geo.box, mat.yellow, half, railTop, 0, 0.01, 0.01, ps * 0.94);
+    addPart(visual, geo.box, mat.yellow, -half, railTop, 0, 0.01, 0.01, ps * 0.94);
+    addPart(visual, geo.box, mat.yellow, -ps * 0.28, railTop, half, ps * 0.34, 0.01, 0.01);
+    addPart(visual, geo.box, mat.yellow, ps * 0.28, railTop, half, ps * 0.34, 0.01, 0.01);
+    addPart(visual, geo.box, mat.yellow, 0, platformY + 0.02 + railH * 0.5, -half, ps * 0.94, 0.007, 0.007);
 
-    addPart(visual, geo.box, mat.steel, 0.05, crownY + 0.04, -0.03, 0.09, 0.05, 0.08);
-    addPart(visual, geo.cylLow, mat.steelDark, 0.05, crownY + 0.10, -0.03, 0.012, 0.08, 0.012);
-    addPart(visual, geo.box, mat.orange, -0.05, crownY + 0.05, 0.04, 0.05, 0.06, 0.05);
-    addPart(visual, geo.cylLow, mat.steelLight, -0.06, crownY + 0.08, 0.04, 0.01, 0.10, 0.01);
-    addPart(visual, geo.cylLow, mat.steelLight, 0.06, crownY + 0.08, 0.04, 0.01, 0.10, 0.01);
+    const crownY = 1.50;
+    const crownSpread = spreadAt(crownY);
+    corners.forEach(([i, j]) => {
+        const [x1, y1, z1] = cornerPos(i, j, 1.46);
+        const [x2, y2, z2] = [i * crownSpread * 0.85, 1.56, j * crownSpread * 0.85];
+        addStrut(visual, geo.cylLow, mat.steel, x1, y1, z1, x2, y2, z2, 0.012);
+    });
 
-    addPart(visual, geo.cylLow, mat.steelDark, 0, 0.56, 0, 0.02, 0.88, 0.02);
+    const crownHalf = crownSpread * 0.9;
+    addStrut(visual, geo.cylLow, mat.steelLight, crownHalf, 1.56, crownHalf, -crownHalf, 1.56, crownHalf, 0.01);
+    addStrut(visual, geo.cylLow, mat.steelLight, -crownHalf, 1.56, crownHalf, -crownHalf, 1.56, -crownHalf, 0.01);
+    addStrut(visual, geo.cylLow, mat.steelLight, -crownHalf, 1.56, -crownHalf, crownHalf, 1.56, -crownHalf, 0.01);
+    addStrut(visual, geo.cylLow, mat.steelLight, crownHalf, 1.56, -crownHalf, crownHalf, 1.56, crownHalf, 0.01);
+    addStrut(visual, geo.cylLow, mat.steelLight, crownHalf, 1.56, 0, -crownHalf, 1.56, 0, 0.009);
+    addStrut(visual, geo.cylLow, mat.steelLight, 0, 1.56, crownHalf, 0, 1.56, -crownHalf, 0.009);
 
-    addPart(visual, geo.cylLow, mat.rust, 0, 0.10, 0.19, 0.02, 0.06, 0.02, Math.PI / 2, 0, 0);
-    addPart(visual, geo.box, mat.steelLight, 0, 0.10, 0.22, 0.04, 0.04, 0.012);
+    addPart(visual, geo.box, mat.steelDark, 0, 1.58, 0, 0.09, 0.04, 0.07);
+    addPart(visual, geo.cylLow, mat.steelLight, 0, 1.61, 0.018, 0.016, 0.05, 0.016, 0, 0, Math.PI / 2);
+    addPart(visual, geo.cylLow, mat.steelLight, 0, 1.61, -0.018, 0.016, 0.05, 0.016, 0, 0, Math.PI / 2);
+    addPart(visual, geo.box, mat.steel, 0, 1.64, 0, 0.05, 0.03, 0.04);
+    addPart(visual, geo.box, mat.orange, 0, 1.58, 0.04, 0.03, 0.03, 0.02);
+
+    addPart(visual, geo.cylLow, mat.steelDark, 0, 0.56, 0, 0.018, 0.88, 0.018);
+
+    addPart(visual, geo.cylLow, mat.rust, 0, 0.10, 0.23, 0.012, 0.05, 0.012, Math.PI / 2, 0, 0);
+    addPart(visual, geo.cylLow, mat.steelDark, 0, 0.10, 0.248, 0.014, 0.012, 0.014, Math.PI / 2, 0, 0);
+    addPart(visual, geo.box, mat.steelLight, 0, 0.10, 0.255, 0.026, 0.026, 0.008);
 
     const ladderY0 = 0.10;
-    const ladderY1 = crownY;
+    const ladderY1 = platformY + 0.02;
     const ladderZAt = (y) => spreadAt(y) + 0.024;
     addStrut(visual, geo.cylLow, mat.yellow, -0.05, ladderY0, ladderZAt(ladderY0), -0.04, ladderY1, ladderZAt(ladderY1), 0.01);
     addStrut(visual, geo.cylLow, mat.yellow, 0.05, ladderY0, ladderZAt(ladderY0), 0.04, ladderY1, ladderZAt(ladderY1), 0.01);
@@ -1475,9 +1493,6 @@ export function createProceduralOilRig() {
         const z = ladderZAt(y);
         addPart(visual, geo.box, mat.yellow, 0, y, z, 0.10, 0.014, 0.016);
     }
-
-    addPart(visual, geo.cylLow, mat.rust, 0.12, 0.22, 0.18, 0.025, 0.28, 0.025, 0, 0, Math.PI / 5);
-    addPart(visual, geo.cylLow, mat.rust, 0.16, 0.18, 0.10, 0.02, 0.22, 0.02, 0, 0, Math.PI / 2);
 
     placeYUpByFootprint(visual, PROCEDURAL_RIG_FOOTPRINT);
     rigRoot = createPlacedGroup(visual, RIG_POSITION);
@@ -1507,10 +1522,12 @@ function createPumpjack() {
     addPart(visual, geo.cylLow, mat.steel, 0.22, 0.08, 0, 0.03, 0.12, 0.03);
     addPart(visual, geo.cone, mat.rust, 0.22, 0.16, 0, 0.04, 0.06, 0.04);
 
-    addPart(visual, geo.cylLow, mat.rust, -0.16, 0.12, 0, 0.022, 0.06, 0.022, 0, 0, Math.PI / 2);
-    addPart(visual, geo.box, mat.steelLight, -0.18, 0.12, 0, 0.012, 0.038, 0.038);
-    addPart(visual, geo.cylLow, mat.rust, 0.02, 0.12, -0.07, 0.022, 0.05, 0.022, Math.PI / 2, 0, 0);
-    addPart(visual, geo.box, mat.steelLight, 0.02, 0.12, -0.08, 0.038, 0.038, 0.012);
+    addPart(visual, geo.cylLow, mat.rust, -0.175, 0.11, 0, 0.026, 0.07, 0.026, 0, 0, Math.PI / 2);
+    addPart(visual, geo.cylLow, mat.steelDark, -0.195, 0.11, 0, 0.03, 0.014, 0.03, 0, 0, Math.PI / 2);
+    addPart(visual, geo.box, mat.steelLight, -0.205, 0.11, 0, 0.01, 0.04, 0.04);
+    addPart(visual, geo.cylLow, mat.rust, 0.0, 0.11, -0.075, 0.026, 0.055, 0.026, Math.PI / 2, 0, 0);
+    addPart(visual, geo.cylLow, mat.steelDark, 0.0, 0.11, -0.09, 0.03, 0.012, 0.03, Math.PI / 2, 0, 0);
+    addPart(visual, geo.box, mat.steelLight, 0.0, 0.11, -0.098, 0.04, 0.04, 0.01);
 
     placeYUpByFootprint(visual, 0.13);
     const root = createPlacedGroup(visual, PUMPJACK_POSITION, 0);
@@ -1602,23 +1619,47 @@ function addPipeSupports(visual, geo, mat, x1, y1, x2, y2, supportTopY, pipeRadi
     }
 }
 
-function addPipeFlange(visual, geo, mat, mapX, mapY, centerY, dirX, dirY) {
+function addPipeFlange(visual, geo, mat, mapX, mapY, centerY, dirX, dirY, radius) {
     const point = mapToLocal(mapX, mapY, centerY);
+    const size = radius * 2.4;
+    const thick = radius * 0.7;
     const alongX = Math.abs(dirX) >= Math.abs(dirY);
     if (alongX) {
-        addPart(visual, geo.box, mat, point.x, point.y, point.z, 0.01, 0.034, 0.034);
+        addPart(visual, geo.box, mat, point.x, point.y, point.z, thick, size, size);
     } else {
-        addPart(visual, geo.box, mat, point.x, point.y, point.z, 0.034, 0.034, 0.01);
+        addPart(visual, geo.box, mat, point.x, point.y, point.z, size, size, thick);
     }
 }
 
-function addPipeStub(visual, geo, mat, point, inward, centerY, radius) {
-    const length = 0.03;
+function addPipeStub(visual, geo, mat, point, inward, centerY, radius, length = 0.022) {
     const mag = Math.hypot(inward.x, inward.y) || 1;
     const ix = (inward.x / mag) * length;
     const iy = (inward.y / mag) * length;
-    addPipeSegment(visual, geo.cylLow, mat.rust, point.x, point.y, point.x + ix, point.y + iy, centerY, radius);
-    addPipeFlange(visual, geo, mat.steelLight, point.x, point.y, centerY, inward.x, inward.y);
+    const adapterX = point.x - (inward.x / mag) * radius * 2.2;
+    const adapterY = point.y - (inward.y / mag) * radius * 2.2;
+    addPipeSegment(
+        visual,
+        geo.cylLow,
+        mat.rust,
+        point.x,
+        point.y,
+        point.x + ix,
+        point.y + iy,
+        centerY,
+        PIPE_NOZZLE_RADIUS
+    );
+    addPipeSegment(
+        visual,
+        geo.cylLow,
+        mat.steelDark,
+        point.x,
+        point.y,
+        adapterX,
+        adapterY,
+        centerY,
+        radius * 0.9
+    );
+    addPipeFlange(visual, geo, mat.steelLight, point.x, point.y, centerY, inward.x, inward.y, radius);
 }
 
 function createPipes() {
@@ -1635,31 +1676,46 @@ function createPipes() {
         for (let i = 0; i < points.length - 1; i += 1) {
             const from = points[i];
             const to = points[i + 1];
+            const length = Math.hypot(to.x - from.x, to.y - from.y);
             addPipeSegment(visual, geo.cylLow, mat.rust, from.x, from.y, to.x, to.y, pipeCenterY, pipeRadius);
-            addPipeSupports(visual, geo, mat.steelDark, from.x, from.y, to.x, to.y, supportTopY, pipeRadius, 0.07);
+            if (length >= 0.05) {
+                addPipeSupports(visual, geo, mat.steelDark, from.x, from.y, to.x, to.y, supportTopY, pipeRadius, 0.07);
+            }
             addPipeElbow(visual, geo.sphereLow, mat.steelLight, from.x, from.y, pipeCenterY, pipeRadius);
-            addPipeFlange(
-                visual,
-                geo,
-                mat.steelLight,
-                (from.x + to.x) * 0.5,
-                (from.y + to.y) * 0.5,
-                pipeCenterY,
-                to.x - from.x,
-                to.y - from.y
-            );
+            if (length >= 0.08) {
+                addPipeFlange(
+                    visual,
+                    geo,
+                    mat.steelLight,
+                    (from.x + to.x) * 0.5,
+                    (from.y + to.y) * 0.5,
+                    pipeCenterY,
+                    to.x - from.x,
+                    to.y - from.y,
+                    pipeRadius
+                );
+            }
         }
         const last = points[points.length - 1];
         addPipeElbow(visual, geo.sphereLow, mat.steelLight, last.x, last.y, pipeCenterY, pipeRadius);
     });
 
     PIPE_STUBS.forEach((stub) => {
-        addPipeStub(visual, geo, mat, stub.from, stub.inward, pipeCenterY, pipeRadius);
+        addPipeStub(
+            visual,
+            geo,
+            mat,
+            stub.from,
+            stub.inward,
+            pipeCenterY,
+            pipeRadius,
+            stub.length || 0.022
+        );
     });
 
     const valve = mapToLocal(0.06, -0.26, pipeCenterY);
-    addPart(visual, geo.box, mat.yellow, valve.x, valve.y + 0.012, valve.z, 0.02, 0.016, 0.028);
-    addPart(visual, geo.cylLow, mat.steelDark, valve.x, valve.y + 0.022, valve.z, 0.007, 0.014, 0.007);
+    addPart(visual, geo.box, mat.yellow, valve.x, valve.y + 0.01, valve.z, 0.014, 0.012, 0.02);
+    addPart(visual, geo.cylLow, mat.steelDark, valve.x, valve.y + 0.018, valve.z, 0.005, 0.01, 0.005);
 
     visual.rotation.x = Math.PI / 2;
     return visual;
