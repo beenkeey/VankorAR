@@ -7,6 +7,13 @@ const RIG_POSITION = { x: 0.22, y: 0.24, z: 0 };
 const PUMPJACK_POSITION = { x: 0.32, y: -0.06, z: 0 };
 const TANKS_POSITION = { x: -0.22, y: -0.26, z: 0 };
 const CONTAINERS_POSITION = { x: -0.36, y: -0.08, z: 0 };
+const RIG_BASE_SIZE = 0.50;
+const RIG_SCALE = PROCEDURAL_RIG_FOOTPRINT / RIG_BASE_SIZE;
+const PIPE_RADIUS = 0.012;
+const PIPE_SUPPORT_TOP = 0.034;
+const PIPE_CENTER_Y = PIPE_SUPPORT_TOP + PIPE_RADIUS;
+const LADDER_RUNG_COUNT = 16;
+const CLIMB_SPEED = 0.055;
 const BEAR_TURN_SPEED = 2.4;
 const BEAR_WALK_FREQUENCY = 7;
 const BEAR_REACH_EPSILON = 0.028;
@@ -26,8 +33,11 @@ export const SCENE_OBSTACLES = [
     { name: "pumpjack", x: 0.32, y: -0.06, radiusX: 0.09, radiusY: 0.08 },
     { name: "tanks", x: -0.22, y: -0.26, radiusX: 0.13, radiusY: 0.10 },
     { name: "containers", x: -0.36, y: -0.08, radiusX: 0.09, radiusY: 0.08 },
-    { name: "pipesEastWest", x: 0.05, y: -0.26, radiusX: 0.17, radiusY: 0.045 },
-    { name: "pipesNorthSouth", x: 0.20, y: -0.08, radiusX: 0.045, radiusY: 0.16 }
+    { name: "pipesTanksPump", x: 0.06, y: -0.26, radiusX: 0.20, radiusY: 0.04 },
+    { name: "pipesPumpRise", x: 0.255, y: -0.16, radiusX: 0.04, radiusY: 0.11 },
+    { name: "pipesPumpRig", x: 0.32, y: 0.048, radiusX: 0.04, radiusY: 0.10 },
+    { name: "pipesRigIn", x: 0.27, y: 0.138, radiusX: 0.07, radiusY: 0.04 },
+    { name: "pipesTanksHeader", x: -0.20, y: -0.213, radiusX: 0.10, radiusY: 0.04 }
 ];
 
 export const WORK_ZONES = [
@@ -35,6 +45,164 @@ export const WORK_ZONES = [
     { name: "tanks", x: -0.22, y: -0.12, radiusX: 0.07, radiusY: 0.05 },
     { name: "pipes", x: 0.06, y: -0.16, radiusX: 0.07, radiusY: 0.05 },
     { name: "yard", x: -0.08, y: 0.06, radiusX: 0.12, radiusY: 0.10 }
+];
+
+function rigLocalToMap(lx, ly, lz) {
+    return new THREE.Vector3(
+        RIG_POSITION.x + lx * RIG_SCALE,
+        RIG_POSITION.y - lz * RIG_SCALE,
+        ly * RIG_SCALE
+    );
+}
+
+export const RIG_CLIMB_PATH = [
+    rigLocalToMap(0.00, 0.02, 0.34),
+    rigLocalToMap(0.00, 0.10, 0.20),
+    rigLocalToMap(0.00, 0.28, 0.18),
+    rigLocalToMap(0.00, 0.46, 0.16),
+    rigLocalToMap(0.00, 0.64, 0.14),
+    rigLocalToMap(0.00, 0.82, 0.13),
+    rigLocalToMap(0.00, 1.00, 0.12),
+    rigLocalToMap(0.00, 1.14, 0.10),
+    rigLocalToMap(-0.02, 1.16, 0.02),
+    rigLocalToMap(-0.04, 1.18, -0.02)
+];
+
+const PIPE_CONNECTIONS = {
+    tankOutlet: { x: -0.13, y: -0.26 },
+    tankHeaderWest: { x: -0.28, y: -0.213 },
+    tankHeaderEast: { x: -0.13, y: -0.213 },
+    pumpIn: { x: 0.255, y: -0.06 },
+    pumpOut: { x: 0.32, y: -0.042 },
+    rigIn: { x: 0.22, y: 0.138 }
+};
+
+const PIPE_STUBS = [
+    { from: PIPE_CONNECTIONS.tankOutlet, inward: { x: -1, y: 0 } },
+    { from: PIPE_CONNECTIONS.tankHeaderWest, inward: { x: 0, y: -1 } },
+    { from: PIPE_CONNECTIONS.tankHeaderEast, inward: { x: 0, y: -1 } },
+    { from: PIPE_CONNECTIONS.pumpIn, inward: { x: 1, y: 0 } },
+    { from: PIPE_CONNECTIONS.pumpOut, inward: { x: 0, y: -1 } },
+    { from: PIPE_CONNECTIONS.rigIn, inward: { x: 0, y: 1 } }
+];
+
+const PIPE_LINES = [
+    {
+        name: "tanksHeader",
+        points: [
+            PIPE_CONNECTIONS.tankHeaderWest,
+            PIPE_CONNECTIONS.tankHeaderEast,
+            PIPE_CONNECTIONS.tankOutlet
+        ]
+    },
+    {
+        name: "tanksToPump",
+        points: [
+            PIPE_CONNECTIONS.tankOutlet,
+            { x: 0.255, y: -0.26 },
+            PIPE_CONNECTIONS.pumpIn
+        ]
+    },
+    {
+        name: "pumpToRig",
+        points: [
+            PIPE_CONNECTIONS.pumpOut,
+            { x: 0.32, y: 0.138 },
+            PIPE_CONNECTIONS.rigIn
+        ]
+    }
+];
+
+const BIRD_MIN_Z = 0.16;
+
+const BIRD_ROUTES = [
+    {
+        name: "upperCrossing",
+        speed: 0.10,
+        scale: 1.15,
+        delay: 0,
+        turnSpeed: 3.2,
+        pingPong: true,
+        points: [
+            { x: -0.38, y: 0.28, z: 0.22 },
+            { x: -0.12, y: 0.30, z: 0.23 },
+            { x: 0.10, y: 0.29, z: 0.22 },
+            { x: 0.36, y: 0.26, z: 0.21 }
+        ]
+    },
+    {
+        name: "forestLoop",
+        speed: 0.08,
+        scale: 0.9,
+        delay: 0.8,
+        turnSpeed: 2.6,
+        pingPong: true,
+        points: [
+            { x: -0.32, y: 0.18, z: 0.19 },
+            { x: -0.24, y: 0.26, z: 0.20 },
+            { x: -0.16, y: 0.20, z: 0.19 },
+            { x: -0.26, y: 0.12, z: 0.18 }
+        ]
+    },
+    {
+        name: "yardPass",
+        speed: 0.12,
+        scale: 1.05,
+        delay: 0.3,
+        turnSpeed: 3.8,
+        pingPong: true,
+        points: [
+            { x: -0.16, y: 0.00, z: 0.20 },
+            { x: -0.04, y: 0.08, z: 0.21 },
+            { x: 0.06, y: 0.04, z: 0.20 },
+            { x: -0.02, y: -0.08, z: 0.19 }
+        ]
+    },
+    {
+        name: "eastSector",
+        speed: 0.07,
+        scale: 0.85,
+        delay: 1.4,
+        turnSpeed: 2.4,
+        pingPong: true,
+        points: [
+            { x: 0.36, y: -0.28, z: 0.18 },
+            { x: 0.38, y: -0.16, z: 0.19 },
+            { x: 0.36, y: 0.02, z: 0.18 }
+        ]
+    },
+    {
+        name: "westSector",
+        speed: 0.09,
+        scale: 1.0,
+        delay: 0.6,
+        turnSpeed: 3.0,
+        pingPong: true,
+        points: [
+            { x: -0.38, y: -0.16, z: 0.18 },
+            { x: -0.34, y: -0.30, z: 0.19 },
+            { x: -0.08, y: -0.32, z: 0.18 }
+        ]
+    },
+    {
+        name: "longCircuit",
+        speed: 0.11,
+        scale: 1.2,
+        delay: 1.1,
+        turnSpeed: 2.8,
+        pingPong: false,
+        points: [
+            { x: -0.38, y: -0.08, z: 0.20 },
+            { x: -0.20, y: 0.06, z: 0.22 },
+            { x: -0.06, y: 0.20, z: 0.23 },
+            { x: 0.04, y: 0.34, z: 0.22 },
+            { x: 0.36, y: 0.34, z: 0.21 },
+            { x: 0.38, y: 0.10, z: 0.19 },
+            { x: 0.34, y: -0.22, z: 0.18 },
+            { x: 0.08, y: -0.32, z: 0.19 },
+            { x: -0.22, y: -0.12, z: 0.20 }
+        ]
+    }
 ];
 
 const BEAR_SPAWNS = [
@@ -84,10 +252,11 @@ const WORKER_SPAWNS = [
         name: "workerRig",
         role: "rigWork",
         workZone: "rig",
-        stationed: true,
-        position: { x: 0.07, y: 0.16, z: 0 },
-        yaw: -0.6,
-        speed: 0,
+        stationed: false,
+        climber: true,
+        position: { x: 0.22, y: 0.08, z: 0 },
+        yaw: 0,
+        speed: 0.038,
         phase: 1.1,
         scale: 1.03,
         workDuration: 4.8,
@@ -157,15 +326,20 @@ const WORKER_SPAWNS = [
         name: "workerPumpjack",
         role: "pumpWork",
         workZone: "yard",
-        stationed: true,
-        position: { x: 0.18, y: -0.02, z: 0 },
+        stationed: false,
+        climber: true,
+        position: { x: 0.08, y: 0.08, z: 0 },
         yaw: -0.3,
-        speed: 0,
+        speed: 0.034,
         phase: 1.6,
         scale: 1.04,
         workDuration: 4.2,
         idleDuration: 1.0,
-        waypoints: []
+        climbWait: 7.5,
+        waypoints: [
+            new THREE.Vector3(0.08, 0.08, 0),
+            new THREE.Vector3(0.18, 0.08, 0)
+        ]
     },
     {
         name: "workerNorth",
@@ -194,6 +368,7 @@ const bearInstances = [];
 const workerInstances = [];
 const birdInstances = [];
 let pumpjackBeam = null;
+let activeClimber = null;
 
 function getKit() {
     if (kit) {
@@ -889,6 +1064,13 @@ function createWorkerInstance(config) {
     root.userData.workDuration = config.workDuration || 3.6;
     root.userData.idleDuration = config.idleDuration || 1.2;
     root.userData.workTimer = config.stationed ? root.userData.workDuration : 0;
+    root.userData.climber = Boolean(config.climber);
+    root.userData.climbState = config.climber ? "ground" : null;
+    root.userData.climbIndex = 0;
+    root.userData.climbT = 0;
+    root.userData.climbWait = config.climber
+        ? (config.climbWait !== undefined ? config.climbWait : 2 + config.phase)
+        : 0;
 
     return root;
 }
@@ -929,6 +1111,24 @@ export function updateWorkerAnimation(worker, delta, elapsedTime) {
         parts.body.rotation.x = Math.sin(t * 2) * 0.03;
         parts.body.position.y = parts.body.userData.restY + Math.abs(Math.sin(t * 2)) * 0.008;
         parts.head.rotation.y = Math.sin(t * 0.5) * 0.08;
+    } else if (mode === "climb" || mode === "descend") {
+        const swing = Math.sin(t * 1.1) * 0.32;
+        parts.leftLeg.rotation.x = swing;
+        parts.rightLeg.rotation.x = -swing;
+        parts.leftArm.rotation.x = -0.7 + swing * 0.25;
+        parts.rightArm.rotation.x = -0.7 - swing * 0.25;
+        parts.body.rotation.x = 0.08;
+        parts.body.position.y = parts.body.userData.restY;
+        parts.head.rotation.y = 0;
+    } else if (mode === "workHigh") {
+        parts.leftLeg.rotation.x = 0.04;
+        parts.rightLeg.rotation.x = -0.03;
+        parts.body.rotation.x = 0.08 + Math.sin(t * 1.1) * 0.04;
+        parts.rightArm.rotation.x = -0.7 + Math.sin(t * 1.8) * 0.22;
+        parts.leftArm.rotation.x = -0.25 + Math.sin(t * 1.3) * 0.1;
+        parts.head.rotation.y = Math.sin(elapsedTime * 0.55 + worker.userData.phase) * 0.45;
+        parts.head.rotation.x = 0.05;
+        parts.body.position.y = parts.body.userData.restY;
     } else if (mode === "work") {
         parts.leftLeg.rotation.x = 0.08;
         parts.rightLeg.rotation.x = -0.04;
@@ -971,8 +1171,122 @@ function findClearWorkerWaypoint(worker, startIndex) {
     return -1;
 }
 
+function moveAlongClimbPath(worker, delta, reverse) {
+    const data = worker.userData;
+    const path = RIG_CLIMB_PATH;
+    const start = reverse ? path[path.length - 1 - data.climbIndex] : path[data.climbIndex];
+    const end = reverse ? path[path.length - 2 - data.climbIndex] : path[data.climbIndex + 1];
+    const length = start.distanceTo(end) || 0.001;
+    data.climbT += (CLIMB_SPEED * delta) / length;
+
+    if (data.climbT >= 1) {
+        worker.position.copy(end);
+        data.climbT = 0;
+        data.climbIndex += 1;
+        return data.climbIndex >= path.length - 1;
+    }
+
+    worker.position.lerpVectors(start, end, data.climbT);
+    worker.rotation.z = lerpAngle(
+        worker.rotation.z,
+        getFacingYaw(start, end),
+        3.4 * delta
+    );
+    return false;
+}
+
+function updateClimber(worker, delta) {
+    const data = worker.userData;
+
+    if (data.climbState === "ground") {
+        data.climbWait -= delta;
+        if (data.climbWait <= 0 && !activeClimber) {
+            activeClimber = worker;
+            data.climbState = "toLadder";
+            data.mode = "walk";
+            return true;
+        }
+        return false;
+    }
+
+    if (data.climbState === "toLadder") {
+        const target = RIG_CLIMB_PATH[0];
+        const dx = target.x - worker.position.x;
+        const dy = target.y - worker.position.y;
+        const distance = Math.hypot(dx, dy);
+
+        if (distance <= 0.018) {
+            data.climbState = "climb";
+            data.mode = "climb";
+            data.climbIndex = 0;
+            data.climbT = 0;
+            return true;
+        }
+
+        data.mode = "walk";
+        worker.rotation.z = lerpAngle(worker.rotation.z, getFacingYaw(worker.position, target), 2.4 * delta);
+        const step = Math.min(data.speed * delta, distance);
+        worker.position.x += (dx / distance) * step;
+        worker.position.y += (dy / distance) * step;
+        worker.position.z = 0;
+        return true;
+    }
+
+    if (data.climbState === "climb") {
+        data.mode = "climb";
+        const done = moveAlongClimbPath(worker, delta, false);
+        if (done) {
+            const top = RIG_CLIMB_PATH[RIG_CLIMB_PATH.length - 1];
+            worker.position.copy(top);
+            data.climbState = "workHigh";
+            data.mode = "workHigh";
+            data.climbWait = data.workDuration + 2.5;
+        }
+        return true;
+    }
+
+    if (data.climbState === "workHigh") {
+        data.mode = "workHigh";
+        data.climbLook = (data.climbLook || 0) + delta;
+        const lookYaw = getFacingYaw(worker.position, RIG_POSITION)
+            + Math.sin(data.climbLook * 0.55) * 0.65;
+        worker.rotation.z = lerpAngle(worker.rotation.z, lookYaw, 1.6 * delta);
+        data.climbWait -= delta;
+        if (data.climbWait <= 0) {
+            data.climbState = "descend";
+            data.mode = "descend";
+            data.climbIndex = 0;
+            data.climbT = 0;
+            data.climbLook = 0;
+        }
+        return true;
+    }
+
+    if (data.climbState === "descend") {
+        data.mode = "descend";
+        const done = moveAlongClimbPath(worker, delta, true);
+        if (done) {
+            worker.position.copy(RIG_CLIMB_PATH[0]);
+            worker.position.z = 0;
+            data.climbState = "ground";
+            data.mode = "idle";
+            data.climbWait = 8 + Math.random() * 4;
+            if (activeClimber === worker) {
+                activeClimber = null;
+            }
+        }
+        return true;
+    }
+
+    return false;
+}
+
 function updateWorkerMovement(worker, delta) {
     const data = worker.userData;
+
+    if (data.climber && updateClimber(worker, delta)) {
+        return;
+    }
 
     if (data.stationed) {
         data.workTimer -= delta;
@@ -1113,19 +1427,54 @@ export function createProceduralOilRig() {
     addPart(visual, geo.box, mat.yellow, ps / 2, platformY + 0.04, 0, 0.016, 0.02, ps);
     addPart(visual, geo.box, mat.yellow, -ps / 2, platformY + 0.04, 0, 0.016, 0.02, ps);
 
-    addPart(visual, geo.box, mat.steelDark, 0, 1.34, 0, 0.16, 0.04, 0.16);
-    addPart(visual, geo.torus, mat.steelLight, 0, 1.40, 0, 0.05, 0.05, 0.05, Math.PI / 2, 0, 0);
-    addPart(visual, geo.cone, mat.orange, 0, 1.46, 0, 0.04, 0.08, 0.04);
-    addPart(visual, geo.cylLow, mat.steelDark, 0, 0.70, 0, 0.02, 1.16, 0.02);
+    const crownY = 1.16;
+    const deck = spreadAt(crownY) * 2 + 0.10;
+    addPart(visual, geo.box, mat.steelDark, 0, crownY, 0, deck, 0.03, deck);
+    addPart(visual, geo.box, mat.steelLight, 0, crownY + 0.018, 0, deck * 0.92, 0.008, deck * 0.92);
+    addPart(visual, geo.box, mat.yellow, 0, crownY + 0.022, 0, deck * 0.08, 0.004, deck * 0.88);
+    addPart(visual, geo.box, mat.yellow, 0.03, crownY + 0.022, 0, deck * 0.04, 0.004, deck * 0.88);
 
-    const ladderX = 0;
-    for (let i = 0; i < 9; i += 1) {
-        const y = 0.14 + i * 0.12;
-        const s = spreadAt(y);
-        addPart(visual, geo.box, mat.yellow, ladderX, y, s + 0.01, 0.08, 0.01, 0.012);
+    const railH = 0.12;
+    const half = deck * 0.48;
+    const posts = [
+        [half, half], [half, -half], [-half, -half], [-half, half],
+        [0, half], [0, -half], [half, 0], [-half, 0]
+    ];
+    posts.forEach(([px, pz]) => {
+        addPart(visual, geo.cylLow, mat.yellow, px, crownY + 0.03 + railH * 0.5, pz, 0.008, railH, 0.008);
+    });
+    addPart(visual, geo.box, mat.yellow, 0, crownY + 0.03 + railH, half, deck * 0.96, 0.012, 0.012);
+    addPart(visual, geo.box, mat.yellow, 0, crownY + 0.03 + railH, -half, deck * 0.96, 0.012, 0.012);
+    addPart(visual, geo.box, mat.yellow, half, crownY + 0.03 + railH, 0, 0.012, 0.012, deck * 0.96);
+    addPart(visual, geo.box, mat.yellow, -half, crownY + 0.03 + railH, 0, 0.012, 0.012, deck * 0.96);
+    addPart(visual, geo.box, mat.yellow, 0, crownY + 0.03 + railH * 0.55, half, deck * 0.96, 0.008, 0.008);
+    addPart(visual, geo.box, mat.yellow, 0, crownY + 0.03 + railH * 0.55, -half, deck * 0.96, 0.008, 0.008);
+
+    addPart(visual, geo.box, mat.steel, 0.05, crownY + 0.04, -0.03, 0.09, 0.05, 0.08);
+    addPart(visual, geo.cylLow, mat.steelDark, 0.05, crownY + 0.10, -0.03, 0.012, 0.08, 0.012);
+    addPart(visual, geo.box, mat.orange, -0.05, crownY + 0.05, 0.04, 0.05, 0.06, 0.05);
+    addPart(visual, geo.cylLow, mat.steelLight, -0.06, crownY + 0.08, 0.04, 0.01, 0.10, 0.01);
+    addPart(visual, geo.cylLow, mat.steelLight, 0.06, crownY + 0.08, 0.04, 0.01, 0.10, 0.01);
+
+    addPart(visual, geo.cylLow, mat.steelDark, 0, 0.56, 0, 0.02, 0.88, 0.02);
+
+    addPart(visual, geo.cylLow, mat.rust, 0, 0.10, 0.19, 0.02, 0.06, 0.02, Math.PI / 2, 0, 0);
+    addPart(visual, geo.box, mat.steelLight, 0, 0.10, 0.22, 0.04, 0.04, 0.012);
+
+    const ladderY0 = 0.10;
+    const ladderY1 = crownY;
+    const ladderZAt = (y) => spreadAt(y) + 0.024;
+    addStrut(visual, geo.cylLow, mat.yellow, -0.05, ladderY0, ladderZAt(ladderY0), -0.04, ladderY1, ladderZAt(ladderY1), 0.01);
+    addStrut(visual, geo.cylLow, mat.yellow, 0.05, ladderY0, ladderZAt(ladderY0), 0.04, ladderY1, ladderZAt(ladderY1), 0.01);
+    addStrut(visual, geo.cylLow, mat.steelLight, -0.07, ladderY0 + 0.04, ladderZAt(ladderY0) + 0.02, -0.055, ladderY1, ladderZAt(ladderY1) + 0.018, 0.007);
+    addStrut(visual, geo.cylLow, mat.steelLight, 0.07, ladderY0 + 0.04, ladderZAt(ladderY0) + 0.02, 0.055, ladderY1, ladderZAt(ladderY1) + 0.018, 0.007);
+
+    for (let i = 0; i < LADDER_RUNG_COUNT; i += 1) {
+        const t = i / (LADDER_RUNG_COUNT - 1);
+        const y = THREE.MathUtils.lerp(ladderY0, ladderY1, t);
+        const z = ladderZAt(y);
+        addPart(visual, geo.box, mat.yellow, 0, y, z, 0.10, 0.014, 0.016);
     }
-    addStrut(visual, geo.cylLow, mat.yellow, -0.04, 0.12, bottom + 0.01, -0.02, 1.12, spreadAt(1.12) + 0.01, 0.008);
-    addStrut(visual, geo.cylLow, mat.yellow, 0.04, 0.12, bottom + 0.01, 0.02, 1.12, spreadAt(1.12) + 0.01, 0.008);
 
     addPart(visual, geo.cylLow, mat.rust, 0.12, 0.22, 0.18, 0.025, 0.28, 0.025, 0, 0, Math.PI / 5);
     addPart(visual, geo.cylLow, mat.rust, 0.16, 0.18, 0.10, 0.02, 0.22, 0.02, 0, 0, Math.PI / 2);
@@ -1158,6 +1507,11 @@ function createPumpjack() {
     addPart(visual, geo.cylLow, mat.steel, 0.22, 0.08, 0, 0.03, 0.12, 0.03);
     addPart(visual, geo.cone, mat.rust, 0.22, 0.16, 0, 0.04, 0.06, 0.04);
 
+    addPart(visual, geo.cylLow, mat.rust, -0.16, 0.12, 0, 0.022, 0.06, 0.022, 0, 0, Math.PI / 2);
+    addPart(visual, geo.box, mat.steelLight, -0.18, 0.12, 0, 0.012, 0.038, 0.038);
+    addPart(visual, geo.cylLow, mat.rust, 0.02, 0.12, -0.07, 0.022, 0.05, 0.022, Math.PI / 2, 0, 0);
+    addPart(visual, geo.box, mat.steelLight, 0.02, 0.12, -0.08, 0.038, 0.038, 0.012);
+
     placeYUpByFootprint(visual, 0.13);
     const root = createPlacedGroup(visual, PUMPJACK_POSITION, 0);
     root.name = "pumpjack";
@@ -1177,7 +1531,12 @@ function createTanks() {
         addPart(visual, geo.cone, mat.tankDark, x, h + 0.03, 0, 0.075, 0.06, 0.075);
         addPart(visual, geo.cylLow, mat.steelDark, x, 0.02, 0, 0.08, 0.03, 0.08);
         addPart(visual, geo.box, mat.yellow, x, h * 0.6, 0.07, 0.02, 0.04, 0.01);
+        addPart(visual, geo.cylLow, mat.rust, x, 0.07, -0.08, 0.02, 0.05, 0.02, Math.PI / 2, 0, 0);
+        addPart(visual, geo.box, mat.steelLight, x, 0.07, -0.105, 0.036, 0.036, 0.012);
     });
+
+    addPart(visual, geo.cylLow, mat.rust, 0.19, 0.07, 0, 0.02, 0.06, 0.02, 0, 0, Math.PI / 2);
+    addPart(visual, geo.box, mat.steelLight, 0.21, 0.07, 0, 0.012, 0.038, 0.038);
 
     addPart(visual, geo.box, mat.concrete, 0, 0.015, 0, 0.42, 0.03, 0.22);
 
@@ -1243,39 +1602,60 @@ function addPipeSupports(visual, geo, mat, x1, y1, x2, y2, supportTopY, pipeRadi
     }
 }
 
+function addPipeFlange(visual, geo, mat, mapX, mapY, centerY, dirX, dirY) {
+    const point = mapToLocal(mapX, mapY, centerY);
+    const alongX = Math.abs(dirX) >= Math.abs(dirY);
+    if (alongX) {
+        addPart(visual, geo.box, mat, point.x, point.y, point.z, 0.01, 0.034, 0.034);
+    } else {
+        addPart(visual, geo.box, mat, point.x, point.y, point.z, 0.034, 0.034, 0.01);
+    }
+}
+
+function addPipeStub(visual, geo, mat, point, inward, centerY, radius) {
+    const length = 0.03;
+    const mag = Math.hypot(inward.x, inward.y) || 1;
+    const ix = (inward.x / mag) * length;
+    const iy = (inward.y / mag) * length;
+    addPipeSegment(visual, geo.cylLow, mat.rust, point.x, point.y, point.x + ix, point.y + iy, centerY, radius);
+    addPipeFlange(visual, geo, mat.steelLight, point.x, point.y, centerY, inward.x, inward.y);
+}
+
 function createPipes() {
     const { geo, mat } = getKit();
     const visual = new THREE.Group();
     visual.name = "pipes";
 
-    const pipeRadius = 0.013;
-    const supportTopY = 0.034;
-    const pipeCenterY = supportTopY + pipeRadius;
-    const route = [
-        { x: -0.10, y: -0.26 },
-        { x: 0.20, y: -0.26 },
-        { x: 0.20, y: 0.10 }
-    ];
+    const pipeRadius = PIPE_RADIUS;
+    const supportTopY = PIPE_SUPPORT_TOP;
+    const pipeCenterY = PIPE_CENTER_Y;
 
-    const riserStart = mapToLocal(route[0].x, route[0].y, pipeCenterY * 0.5);
-    addPart(visual, geo.cylLow, mat.rust, riserStart.x, riserStart.y, riserStart.z, pipeRadius, pipeCenterY, pipeRadius);
-    addPipeSupport(visual, geo, mat.steelDark, route[0].x, route[0].y, supportTopY, pipeRadius);
+    PIPE_LINES.forEach((line) => {
+        const points = line.points;
+        for (let i = 0; i < points.length - 1; i += 1) {
+            const from = points[i];
+            const to = points[i + 1];
+            addPipeSegment(visual, geo.cylLow, mat.rust, from.x, from.y, to.x, to.y, pipeCenterY, pipeRadius);
+            addPipeSupports(visual, geo, mat.steelDark, from.x, from.y, to.x, to.y, supportTopY, pipeRadius, 0.07);
+            addPipeElbow(visual, geo.sphereLow, mat.steelLight, from.x, from.y, pipeCenterY, pipeRadius);
+            addPipeFlange(
+                visual,
+                geo,
+                mat.steelLight,
+                (from.x + to.x) * 0.5,
+                (from.y + to.y) * 0.5,
+                pipeCenterY,
+                to.x - from.x,
+                to.y - from.y
+            );
+        }
+        const last = points[points.length - 1];
+        addPipeElbow(visual, geo.sphereLow, mat.steelLight, last.x, last.y, pipeCenterY, pipeRadius);
+    });
 
-    for (let i = 0; i < route.length - 1; i += 1) {
-        const from = route[i];
-        const to = route[i + 1];
-        addPipeSegment(visual, geo.cylLow, mat.rust, from.x, from.y, to.x, to.y, pipeCenterY, pipeRadius);
-        addPipeSupports(visual, geo, mat.steelDark, from.x, from.y, to.x, to.y, supportTopY, pipeRadius, 0.06);
-        addPipeElbow(visual, geo.sphereLow, mat.steelLight, from.x, from.y, pipeCenterY, pipeRadius);
-    }
-
-    const last = route[route.length - 1];
-    addPipeElbow(visual, geo.sphereLow, mat.steelLight, last.x, last.y, pipeCenterY, pipeRadius);
-    addPipeSupport(visual, geo, mat.steelDark, last.x, last.y, supportTopY, pipeRadius);
-
-    const riserEnd = mapToLocal(last.x, last.y, pipeCenterY + 0.018);
-    addPart(visual, geo.cylLow, mat.rust, riserEnd.x, pipeCenterY + 0.01, riserEnd.z, pipeRadius, 0.028, pipeRadius);
-    addPart(visual, geo.box, mat.yellow, riserEnd.x, pipeCenterY + 0.026, riserEnd.z, 0.028, 0.014, 0.028);
+    PIPE_STUBS.forEach((stub) => {
+        addPipeStub(visual, geo, mat, stub.from, stub.inward, pipeCenterY, pipeRadius);
+    });
 
     const valve = mapToLocal(0.06, -0.26, pipeCenterY);
     addPart(visual, geo.box, mat.yellow, valve.x, valve.y + 0.012, valve.z, 0.02, 0.016, 0.028);
@@ -1463,6 +1843,18 @@ function createBird() {
     return bird;
 }
 
+function getBirdFacingYaw(from, to) {
+    return Math.atan2(to.y - from.y, to.x - from.x);
+}
+
+function getBirdTargetIndex(route, segment, dir) {
+    if (route.pingPong) {
+        return segment + dir;
+    }
+
+    return (segment + 1) % route.points.length;
+}
+
 function createProceduralBirds() {
     if (birdInstances.length > 0) {
         return birdInstances[0].parent;
@@ -1471,19 +1863,19 @@ function createProceduralBirds() {
     const root = new THREE.Group();
     root.name = "birdsRoot";
 
-    const flights = [
-        { cx: -0.08, cy: 0.10, rx: 0.18, ry: 0.10, height: 0.16, speed: 0.55, phase: 0.2 },
-        { cx: 0.04, cy: -0.04, rx: 0.16, ry: 0.12, height: 0.14, speed: 0.72, phase: 1.4 },
-        { cx: -0.18, cy: 0.20, rx: 0.12, ry: 0.08, height: 0.18, speed: 0.48, phase: 2.1 },
-        { cx: 0.12, cy: 0.06, rx: 0.14, ry: 0.09, height: 0.15, speed: -0.63, phase: 0.8 },
-        { cx: -0.04, cy: -0.16, rx: 0.15, ry: 0.07, height: 0.17, speed: 0.40, phase: 2.7 },
-        { cx: 0.08, cy: 0.18, rx: 0.10, ry: 0.11, height: 0.13, speed: -0.52, phase: 1.1 }
-    ];
-
-    flights.forEach((flight, index) => {
+    BIRD_ROUTES.forEach((route, index) => {
         const bird = createBird();
         bird.name = `bird${index + 1}`;
-        bird.userData.flight = flight;
+        bird.scale.setScalar(route.scale);
+        const start = route.points[0];
+        const next = route.points[1] || start;
+        bird.position.set(start.x, start.y, Math.max(start.z, BIRD_MIN_Z));
+        bird.rotation.z = getBirdFacingYaw(start, next);
+        bird.userData.route = route;
+        bird.userData.segment = 0;
+        bird.userData.dir = 1;
+        bird.userData.t = 0;
+        bird.userData.yaw = bird.rotation.z;
         root.add(bird);
         birdInstances.push(bird);
     });
@@ -1491,22 +1883,61 @@ function createProceduralBirds() {
     return root;
 }
 
-function updateBirds(elapsedTime) {
+function updateBirds(delta, elapsedTime) {
+    const step = Math.min(delta, 0.05);
+
     birdInstances.forEach((bird) => {
-        const flight = bird.userData.flight;
-        const t = elapsedTime * flight.speed + flight.phase;
-        const x = flight.cx + Math.cos(t) * flight.rx;
-        const y = flight.cy + Math.sin(t) * flight.ry;
-        const z = flight.height + Math.sin(t * 2.2) * 0.012;
-
-        bird.position.set(x, y, z);
-        const vx = -Math.sin(t) * flight.rx * flight.speed;
-        const vy = Math.cos(t) * flight.ry * flight.speed;
-        bird.rotation.z = Math.atan2(vx, -vy);
-
-        const flap = Math.sin(elapsedTime * 16 + flight.phase) * 0.6;
+        const route = bird.userData.route;
+        const points = route.points;
+        const flap = Math.sin(elapsedTime * 16 + route.delay) * 0.6;
         bird.userData.wings.left.rotation.x = flap;
         bird.userData.wings.right.rotation.x = -flap;
+
+        if (elapsedTime < route.delay) {
+            return;
+        }
+
+        let segment = bird.userData.segment;
+        let dir = bird.userData.dir;
+        let toIndex = getBirdTargetIndex(route, segment, dir);
+
+        if (route.pingPong && (toIndex < 0 || toIndex >= points.length)) {
+            dir *= -1;
+            toIndex = segment + dir;
+        }
+
+        const from = points[segment];
+        const to = points[toIndex];
+        const length = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z) || 0.001;
+        bird.userData.t += (route.speed * step) / length;
+
+        if (bird.userData.t >= 1) {
+            bird.userData.t = 0;
+            segment = toIndex;
+            if (route.pingPong) {
+                const peek = segment + dir;
+                if (peek < 0 || peek >= points.length) {
+                    dir *= -1;
+                }
+            }
+            toIndex = getBirdTargetIndex(route, segment, dir);
+        }
+
+        bird.userData.segment = segment;
+        bird.userData.dir = dir;
+
+        const currentFrom = points[segment];
+        const currentTo = points[toIndex];
+        const t = bird.userData.t;
+        bird.position.set(
+            THREE.MathUtils.lerp(currentFrom.x, currentTo.x, t),
+            THREE.MathUtils.lerp(currentFrom.y, currentTo.y, t),
+            Math.max(THREE.MathUtils.lerp(currentFrom.z, currentTo.z, t), BIRD_MIN_Z)
+        );
+
+        const targetYaw = getBirdFacingYaw(currentFrom, currentTo);
+        bird.userData.yaw = lerpAngle(bird.userData.yaw, targetYaw, route.turnSpeed * step);
+        bird.rotation.z = bird.userData.yaw;
     });
 }
 
@@ -1550,5 +1981,5 @@ export function updateProceduralScene(delta, elapsedTime, flags) {
         updateSiteAnimation(elapsedTime);
     }
 
-    updateBirds(elapsedTime);
+    updateBirds(delta, elapsedTime);
 }
