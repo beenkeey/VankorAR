@@ -1,9 +1,11 @@
 import * as THREE from "three";
 import {
     getInteractiveObjects,
+    isPumpjackDemoRunning,
+    isRigDemoRunning,
     requestPumpjackWorkDemo,
     requestRigWorkDemo
-} from "./procedural-scene.js?v=7";
+} from "./procedural-scene.js?v=10";
 
 const raycaster = new THREE.Raycaster();
 const pointerNdc = new THREE.Vector2();
@@ -16,6 +18,9 @@ let selectedObject = null;
 let highlightPulse = 0;
 let lastTapAt = 0;
 let bound = false;
+
+const ACTION_IDLE_LABEL = "Показать, как работает";
+const ACTION_BUSY_LABEL = "Демонстрация выполняется…";
 
 const card = {
     root: null,
@@ -117,6 +122,21 @@ function clearSelection() {
     hideCard();
 }
 
+function syncActionButton() {
+    if (!card.action) {
+        return;
+    }
+
+    const type = selectedObject && selectedObject.userData.interactiveType;
+    const busy = type === "rig"
+        ? isRigDemoRunning()
+        : type === "pumpjack"
+            ? isPumpjackDemoRunning()
+            : false;
+
+    card.action.textContent = busy ? ACTION_BUSY_LABEL : ACTION_IDLE_LABEL;
+}
+
 function showCard(object) {
     if (!card.root) {
         return;
@@ -128,6 +148,7 @@ function showCard(object) {
     const showAction = object.userData.interactiveType === "rig"
         || object.userData.interactiveType === "pumpjack";
     card.action.classList.toggle("hidden", !showAction);
+    syncActionButton();
     card.root.classList.remove("hidden");
 }
 
@@ -281,11 +302,13 @@ function onActionClick(event) {
 
     if (selectedObject.userData.interactiveType === "rig") {
         requestRigWorkDemo();
+        syncActionButton();
         return;
     }
 
     if (selectedObject.userData.interactiveType === "pumpjack") {
         requestPumpjackWorkDemo();
+        syncActionButton();
     }
 }
 
@@ -384,6 +407,8 @@ export function updateSceneInteraction(delta) {
     if (!selectedObject) {
         return;
     }
+
+    syncActionButton();
 
     const root = getHighlightRoot(selectedObject);
     if (!root.userData._highlightBaseScale) {

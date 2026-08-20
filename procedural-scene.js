@@ -15,6 +15,7 @@ const PIPE_SUPPORT_TOP = 0.034;
 const PIPE_CENTER_Y = PIPE_SUPPORT_TOP + PIPE_RADIUS;
 const LADDER_RUNG_COUNT = 16;
 const CLIMB_SPEED = 0.055;
+const RIG_EXIT_SPEED = 0.030;
 
 const RIG_TOWER_HEIGHT = 1.50;
 const RIG_TOWER_BOTTOM = 0.18;
@@ -95,8 +96,16 @@ const RIG_PLATFORM_ENTRY = rigLocalToMap(
     RIG_LADDER_Y1,
     RIG_LADDER_Z1
 );
+const RIG_PLATFORM_CLEAR = rigLocalToMap(0.09, RIG_LADDER_Y1, 0.168);
 const RIG_TERMINAL_LOCAL = { x: 0.145, y: RIG_PLATFORM_POSITION.y + 0.03, z: 0.148 };
 const RIG_TERMINAL_STAND = rigLocalToMap(0.145, RIG_LADDER_Y1, 0.178);
+const RIG_LADDER_EXIT_POINT = rigLocalToMap(RIG_LADDER_X, 0.02, RIG_LADDER_Z0 + 0.18);
+const RIG_INSPECT_POINTS = [
+    new THREE.Vector3(0.22, 0.07, 0),
+    new THREE.Vector3(0.30, 0.10, 0),
+    new THREE.Vector3(0.10, 0.10, 0),
+    new THREE.Vector3(0.07, 0.18, 0)
+];
 const PUMPJACK_PANEL_POSITION = { x: 0.355, y: -0.155, z: 0 };
 const PUMPJACK_PANEL_STAND = new THREE.Vector3(0.348, -0.178, 0);
 const PUMPJACK_INSPECT = new THREE.Vector3(0.312, -0.168, 0);
@@ -408,10 +417,10 @@ const bearInstances = [];
 const workerInstances = [];
 const birdInstances = [];
 let pumpjackBeam = null;
-let pumpjackPanelScreenMat = null;
-let pumpjackDemoLeft = 0;
 let activeRigWorker = null;
 let rigWarningLight = null;
+let rigTerminalFx = null;
+let pumpjackTerminalFx = null;
 const interactiveObjects = [];
 
 function markInteractive(object, type, title, description) {
@@ -428,17 +437,42 @@ export function getInteractiveObjects() {
     return interactiveObjects;
 }
 
-export function requestRigWorkDemo() {
+function isRigWorkCycleActive() {
     const worker = workerInstances.find((item) => item.userData.climber);
     if (!worker) {
         return false;
     }
 
     const state = worker.userData.climbState;
-    const inCycle = Boolean(activeRigWorker)
+    return Boolean(activeRigWorker)
         || (state && state !== "idle" && state !== "ground");
+}
 
-    if (inCycle) {
+function isPumpjackWorkCycleActive() {
+    const worker = workerInstances.find((item) => item.userData.pumpOperator);
+    if (!worker) {
+        return false;
+    }
+
+    const state = worker.userData.pumpState;
+    return Boolean(state && state !== "idle");
+}
+
+export function isRigDemoRunning() {
+    return isRigWorkCycleActive();
+}
+
+export function isPumpjackDemoRunning() {
+    return isPumpjackWorkCycleActive();
+}
+
+export function requestRigWorkDemo() {
+    const worker = workerInstances.find((item) => item.userData.climber);
+    if (!worker) {
+        return false;
+    }
+
+    if (isRigWorkCycleActive()) {
         return false;
     }
 
@@ -448,12 +482,43 @@ export function requestRigWorkDemo() {
 
 export function requestPumpjackWorkDemo() {
     const worker = workerInstances.find((item) => item.userData.pumpOperator);
-    if (worker && (worker.userData.pumpState === "idle" || !worker.userData.pumpState)) {
-        worker.userData.climbWait = 0;
+    if (!worker) {
+        return false;
     }
 
-    pumpjackDemoLeft = 6;
+    if (isPumpjackWorkCycleActive()) {
+        return false;
+    }
+
+    worker.userData.climbWait = 0;
     return true;
+}
+
+function setTerminalFxActive(fx, active) {
+    if (!fx || fx.active === Boolean(active)) {
+        return;
+    }
+
+    fx.active = Boolean(active);
+    fx.screenMats.forEach((material) => {
+        material.emissive.setHex(active ? 0x3aa7ff : 0x000000);
+        material.emissiveIntensity = active ? 1.05 : 0;
+    });
+    fx.indicatorMats.forEach((material) => {
+        material.emissive.copy(material.color);
+        material.emissiveIntensity = active ? 0.9 : 0;
+    });
+    if (fx.light) {
+        fx.light.intensity = active ? 0.28 : 0;
+    }
+}
+
+function setRigTerminalActive(active) {
+    setTerminalFxActive(rigTerminalFx, active);
+}
+
+function setPumpjackTerminalActive(active) {
+    setTerminalFxActive(pumpjackTerminalFx, active);
 }
 
 function getKit() {
@@ -616,7 +681,7 @@ function getFacingYaw(from, to) {
     return Math.atan2(to.x - from.x, -(to.y - from.y));
 }
 
-const CLIMB_YAW = getFacingYaw(RIG_CLIMB_PATH[0], RIG_CLIMB_PATH[5]);
+const CLIMB_YAW = getFacingYaw(RIG_CLIMB_PATH[0], RIG_CLIMB_PATH[RIG_CLIMB_PATH.length - 1]);
 const DESCEND_YAW = CLIMB_YAW;
 
 function lerpAngle(current, target, maxStep) {
@@ -905,7 +970,7 @@ export function createBearInstance(config) {
         root,
         "bear",
         "Бурый медведь",
-        "Один из обитателей северной тайги."
+        "Северная тайга — территория, где промышленная работа соседствует с дикой природой."
     );
 
     return root;
@@ -1191,7 +1256,7 @@ function createWorkerInstance(config) {
         root,
         "worker",
         "Нефтяник",
-        "Работа на нефтяном промысле."
+        "Работа на промысле — это постоянный контроль оборудования, технические операции и обслуживание объектов в самых разных условиях."
     );
 
     return root;
@@ -1266,12 +1331,22 @@ export function updateWorkerAnimation(worker, delta, elapsedTime) {
         parts.head.rotation.y = Math.sin(elapsedTime * 0.7 + worker.userData.phase) * 0.22;
         parts.head.rotation.x = 0.08;
         parts.body.position.y = parts.body.userData.restY;
+    } else if (mode === "inspectRig") {
+        parts.leftLeg.rotation.x = 0.04;
+        parts.rightLeg.rotation.x = -0.05;
+        parts.body.rotation.x = 0.12 + Math.sin(t * 0.8) * 0.04;
+        parts.body.rotation.z = Math.sin(t * 0.6) * 0.03;
+        parts.rightArm.rotation.x = -0.55 + Math.sin(t * 1.6) * 0.16;
+        parts.leftArm.rotation.x = -0.28 + Math.sin(t * 1.2) * 0.08;
+        parts.head.rotation.x = 0.22 + Math.sin(elapsedTime * 0.5 + worker.userData.phase) * 0.08;
+        parts.head.rotation.y = Math.sin(elapsedTime * 0.45 + worker.userData.phase) * 0.2;
+        parts.body.position.y = parts.body.userData.restY;
     } else if (mode === "inspectPumpjack") {
         parts.leftLeg.rotation.x = 0.06;
         parts.rightLeg.rotation.x = -0.05;
         parts.body.rotation.x = 0.22 + Math.sin(t * 0.9) * 0.04;
-        parts.rightArm.rotation.x = -0.35;
-        parts.leftArm.rotation.x = -0.2;
+        parts.rightArm.rotation.x = -0.45 + Math.sin(t * 1.5) * 0.12;
+        parts.leftArm.rotation.x = -0.22 + Math.sin(t * 1.1) * 0.08;
         parts.head.rotation.x = 0.18;
         parts.head.rotation.y = Math.sin(elapsedTime * 0.45 + worker.userData.phase) * 0.18;
         parts.body.position.y = parts.body.userData.restY;
@@ -1371,6 +1446,35 @@ function walkToward(worker, target, delta, speed, lockZ) {
     return false;
 }
 
+function getGroundWorkPoint(worker) {
+    const waypoints = worker.userData.waypoints;
+    if (waypoints && waypoints.length) {
+        return waypoints[0];
+    }
+
+    const zone = WORK_ZONES.find((item) => item.name === worker.userData.workZone);
+    if (zone) {
+        return new THREE.Vector3(zone.x, zone.y, 0);
+    }
+
+    return new THREE.Vector3(0.10, 0.10, 0);
+}
+
+function finishRigCycle(worker) {
+    const data = worker.userData;
+    data.climbState = "idle";
+    data.mode = "idle";
+    data.climbWait = 8 + Math.random() * 5;
+    data.inspectIndex = 0;
+    data.inspectHold = 0;
+    data.inspectLeft = undefined;
+    data.enterClear = false;
+    setRigTerminalActive(false);
+    if (activeRigWorker === worker) {
+        activeRigWorker = null;
+    }
+}
+
 function updateClimber(worker, delta) {
     const data = worker.userData;
     const path = RIG_CLIMB_PATH;
@@ -1383,6 +1487,8 @@ function updateClimber(worker, delta) {
             activeRigWorker = worker;
             data.climbState = "approachRig";
             data.mode = "walk";
+            data.enterClear = false;
+            data.returnViaEntry = false;
             return true;
         }
         return false;
@@ -1407,14 +1513,21 @@ function updateClimber(worker, delta) {
             worker.position.copy(hatch);
             data.climbState = "enterPlatform";
             data.mode = "walk";
+            data.enterClear = false;
         }
         return true;
     }
 
     if (data.climbState === "enterPlatform") {
         data.mode = "walk";
-        if (walkToward(worker, RIG_PLATFORM_ENTRY, delta, data.speed, true)) {
-            data.climbState = "walkToTerminal";
+        const via = data.enterClear ? RIG_PLATFORM_CLEAR : RIG_PLATFORM_ENTRY;
+        if (walkToward(worker, via, delta, data.speed, true)) {
+            if (!data.enterClear) {
+                data.enterClear = true;
+            } else {
+                data.enterClear = false;
+                data.climbState = "walkToTerminal";
+            }
         }
         return true;
     }
@@ -1426,6 +1539,7 @@ function updateClimber(worker, delta) {
             data.mode = "workTerminal";
             data.climbWait = 4 + Math.random() * 4;
             worker.rotation.z = getFacingYaw(worker.position, panelMap);
+            setRigTerminalActive(true);
         }
         return true;
     }
@@ -1440,6 +1554,7 @@ function updateClimber(worker, delta) {
         );
         data.climbWait -= delta;
         if (data.climbWait <= 0) {
+            setRigTerminalActive(false);
             data.climbState = "returnToLadder";
             data.mode = "walk";
             data.climbLook = 0;
@@ -1471,12 +1586,54 @@ function updateClimber(worker, delta) {
         if (done) {
             worker.position.copy(path[0]);
             worker.position.z = 0;
-            data.climbState = "idle";
-            data.mode = "idle";
-            data.climbWait = 8 + Math.random() * 4;
-            if (activeRigWorker === worker) {
-                activeRigWorker = null;
-            }
+            data.climbState = "exitRig";
+            data.mode = "walk";
+        }
+        return true;
+    }
+
+    if (data.climbState === "exitRig") {
+        data.mode = "walk";
+        if (walkToward(worker, RIG_LADDER_EXIT_POINT, delta, RIG_EXIT_SPEED, false)) {
+            data.climbState = "inspectRig";
+            data.inspectIndex = 0;
+            data.inspectHold = 0;
+            data.inspectLeft = 5 + Math.random() * 3;
+            data.mode = "inspectRig";
+        }
+        return true;
+    }
+
+    if (data.climbState === "inspectRig") {
+        data.inspectLeft -= delta;
+        const point = RIG_INSPECT_POINTS[data.inspectIndex % RIG_INSPECT_POINTS.length];
+        if (!walkToward(worker, point, delta, data.speed, false)) {
+            data.mode = "walk";
+            return true;
+        }
+
+        data.mode = "inspectRig";
+        worker.rotation.z = lerpAngle(
+            worker.rotation.z,
+            getFacingYaw(worker.position, RIG_POSITION),
+            2.0 * delta
+        );
+        data.inspectHold += delta;
+        if (data.inspectHold >= 1.15) {
+            data.inspectHold = 0;
+            data.inspectIndex += 1;
+        }
+        if (data.inspectLeft <= 0) {
+            data.climbState = "returnGroundWork";
+            data.mode = "walk";
+        }
+        return true;
+    }
+
+    if (data.climbState === "returnGroundWork") {
+        data.mode = "walk";
+        if (walkToward(worker, getGroundWorkPoint(worker), delta, data.speed, false)) {
+            finishRigCycle(worker);
         }
         return true;
     }
@@ -1490,6 +1647,7 @@ function updatePumpOperator(worker, delta) {
     if (data.pumpState === "idle") {
         data.climbWait -= delta;
         data.mode = "idle";
+        setPumpjackTerminalActive(false);
         if (data.climbWait <= 0) {
             data.pumpState = "approachPumpjack";
             data.mode = "walk";
@@ -1504,6 +1662,7 @@ function updatePumpOperator(worker, delta) {
             data.mode = "workControlPanel";
             data.climbWait = 3.2 + Math.random() * 2.4;
             worker.rotation.z = getFacingYaw(worker.position, PUMPJACK_PANEL_POSITION);
+            setPumpjackTerminalActive(true);
         }
         return true;
     }
@@ -1517,6 +1676,7 @@ function updatePumpOperator(worker, delta) {
         );
         data.climbWait -= delta;
         if (data.climbWait <= 0) {
+            setPumpjackTerminalActive(false);
             data.pumpState = "inspectPumpjack";
             data.mode = "walk";
         }
@@ -1676,23 +1836,54 @@ function createControlPanelMesh() {
     return panel;
 }
 
+function attachTerminalFx(panel, lightColor) {
+    const { mat } = getKit();
+    const fx = {
+        active: false,
+        screenMats: [],
+        indicatorMats: [],
+        light: null
+    };
+
+    panel.traverse((child) => {
+        if (!child.isMesh) {
+            return;
+        }
+
+        const source = child.material;
+        if (source === mat.panelScreen) {
+            child.material = source.clone();
+            child.material.emissive = new THREE.Color(0x000000);
+            child.material.emissiveIntensity = 0;
+            fx.screenMats.push(child.material);
+        } else if (source === mat.yellow || source === mat.orange) {
+            child.material = source.clone();
+            child.material.emissive = new THREE.Color(0x000000);
+            child.material.emissiveIntensity = 0;
+            fx.indicatorMats.push(child.material);
+        }
+    });
+
+    const light = new THREE.PointLight(lightColor, 0, 0.16, 2);
+    light.position.set(0, 0.072, 0.028);
+    panel.add(light);
+    fx.light = light;
+    return fx;
+}
+
 function createRigControlPanel() {
     const panel = createControlPanelMesh();
     panel.name = "rigControlPanel";
     panel.position.set(RIG_TERMINAL_LOCAL.x, RIG_TERMINAL_LOCAL.y, RIG_TERMINAL_LOCAL.z);
+    rigTerminalFx = attachTerminalFx(panel, 0x66ccff);
+    setRigTerminalActive(false);
     return panel;
 }
 
 function createPumpjackControlPanel() {
     const visual = createControlPanelMesh();
-    visual.traverse((child) => {
-        if (child.isMesh && child.material === getKit().mat.panelScreen) {
-            child.material = child.material.clone();
-            child.material.emissive = new THREE.Color(0x000000);
-            child.material.emissiveIntensity = 0;
-            pumpjackPanelScreenMat = child.material;
-        }
-    });
+    pumpjackTerminalFx = attachTerminalFx(visual, 0x66ccff);
+    setPumpjackTerminalActive(false);
     placeYUpByHeight(visual, 0.052);
     const root = createPlacedGroup(visual, PUMPJACK_PANEL_POSITION, 0);
     root.name = "pumpjackControlPanel";
@@ -1918,7 +2109,7 @@ export function createProceduralOilRig() {
         rigRoot,
         "rig",
         "Буровая установка",
-        "Основной объект нефтяного промысла."
+        "Один из ключевых объектов нефтяного промысла. Здесь выполняют буровые и технологические операции при работе со скважинами."
     );
 
     return Promise.resolve(rigRoot);
@@ -1961,7 +2152,7 @@ function createPumpjack() {
         root,
         "pumpjack",
         "Насос-качалка",
-        "Используется для механизированной добычи нефти."
+        "Механизм для механизированной добычи нефти. Рабочий контролирует оборудование и следит за его работой."
     );
     return root;
 }
@@ -1995,7 +2186,7 @@ function createTanks() {
         root,
         "tanks",
         "Резервуары",
-        "Хранение и технологическая подготовка жидкости."
+        "Здесь собираются и временно хранятся продукты добычи перед дальнейшими технологическими операциями."
     );
     return root;
 }
@@ -2447,7 +2638,7 @@ export function createProceduralSite() {
         pumpPanel,
         "pumpjack",
         "Насос-качалка",
-        "Используется для механизированной добычи нефти."
+        "Механизм для механизированной добычи нефти. Рабочий контролирует оборудование и следит за его работой."
     );
     pumpPanel.userData.highlightTarget = pumpjack;
 
@@ -2466,20 +2657,10 @@ export function createProceduralSite() {
 }
 
 export function updateSiteAnimation(elapsedTime, delta = 0.016) {
-    if (pumpjackDemoLeft > 0) {
-        pumpjackDemoLeft = Math.max(0, pumpjackDemoLeft - delta);
-    }
+    void delta;
 
-    const demo = pumpjackDemoLeft > 0;
     if (pumpjackBeam) {
-        const speed = demo ? 2.15 : 1.15;
-        const amplitude = demo ? 0.48 : 0.38;
-        pumpjackBeam.rotation.z = Math.sin(elapsedTime * speed) * amplitude;
-    }
-
-    if (pumpjackPanelScreenMat) {
-        pumpjackPanelScreenMat.emissive.setHex(demo ? 0x3aa7ff : 0x000000);
-        pumpjackPanelScreenMat.emissiveIntensity = demo ? 1.15 : 0;
+        pumpjackBeam.rotation.z = Math.sin(elapsedTime * 1.15) * 0.38;
     }
 
     if (rigWarningLight) {
