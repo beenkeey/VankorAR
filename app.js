@@ -1,6 +1,13 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MindARThree } from "mindar-image-three";
+import {
+    createProceduralBears,
+    createProceduralOilRig,
+    createProceduralSite,
+    createProceduralWorkers,
+    updateProceduralScene
+} from "./procedural-scene.js";
 
 const IMAGE_TARGET_SRC = "./assets/vankor-land.mind";
 const OIL_RIG_SRC = "./assets/models/oil-rig-optimized.glb";
@@ -13,17 +20,8 @@ const BEAR_POSITION = { x: -0.34, y: -0.30, z: 0 };
 const NEFTANIK_POSITION = { x: 0.32, y: 0.14, z: 0 };
 const NEFTANIK_YAW = -Math.PI / 2;
 const USE_PROCEDURAL_BEAR = true;
-const BEAR_MOVE_SPEED = 0.07;
-const BEAR_TURN_SPEED = 2.4;
-const BEAR_WAYPOINT_EPSILON = 0.03;
-const BEAR_WALK_FREQUENCY = 7;
-
-const bearWaypoints = [
-    new THREE.Vector3(-0.34, -0.30, 0),
-    new THREE.Vector3(-0.34, 0.26, 0),
-    new THREE.Vector3(0.20, 0.28, 0),
-    new THREE.Vector3(0.30, -0.26, 0)
-];
+const USE_PROCEDURAL_WORKER = true;
+const USE_PROCEDURAL_RIG = true;
 
 const startScreen = document.querySelector("#start-screen");
 const startButton = document.querySelector("#start-button");
@@ -39,15 +37,6 @@ let oilRigModel = null;
 let oilRigLoadPromise = null;
 let bearModel = null;
 let bearLoadPromise = null;
-let bearGroup = null;
-let bearBody = null;
-let bearHead = null;
-let bearFrontLegs = { left: null, right: null };
-let bearBackLegs = { left: null, right: null };
-let bearTail = null;
-let bearWaypointIndex = 0;
-let bearWalkAmount = 0;
-let bearWalkDisplay = 0;
 let animationClock = null;
 let neftanikModel = null;
 let neftanikLoadPromise = null;
@@ -282,337 +271,6 @@ function loadBearModel() {
     return bearLoadPromise;
 }
 
-function createBearMaterials() {
-    return {
-        fur: new THREE.MeshStandardMaterial({
-            color: 0x5a341c,
-            roughness: 0.9,
-            metalness: 0
-        }),
-        furDark: new THREE.MeshStandardMaterial({
-            color: 0x3f2416,
-            roughness: 0.92,
-            metalness: 0
-        }),
-        muzzle: new THREE.MeshStandardMaterial({
-            color: 0xd2b48c,
-            roughness: 0.78,
-            metalness: 0
-        }),
-        nose: new THREE.MeshStandardMaterial({
-            color: 0x1a120c,
-            roughness: 0.55,
-            metalness: 0
-        }),
-        eye: new THREE.MeshStandardMaterial({
-            color: 0x0a0a0a,
-            roughness: 0.35,
-            metalness: 0.05
-        }),
-        earInner: new THREE.MeshStandardMaterial({
-            color: 0x8d5344,
-            roughness: 0.85,
-            metalness: 0
-        })
-    };
-}
-
-function createBearMesh(geometry, material, position, scale) {
-    const mesh = new THREE.Mesh(geometry, material);
-
-    if (position) {
-        mesh.position.copy(position);
-    }
-
-    if (scale) {
-        mesh.scale.copy(scale);
-    }
-
-    return mesh;
-}
-
-function createBearLeg(materials, x, z, isFront) {
-    const leg = new THREE.Group();
-    leg.position.set(x, 0.30, z);
-    leg.userData.restRotationX = 0;
-
-    const thigh = createBearMesh(
-        new THREE.CapsuleGeometry(isFront ? 0.07 : 0.078, 0.14, 2, 6),
-        materials.furDark,
-        new THREE.Vector3(0, -0.12, 0)
-    );
-
-    const foot = createBearMesh(
-        new THREE.SphereGeometry(1, 6, 4),
-        materials.furDark,
-        new THREE.Vector3(0, -0.28, 0.035),
-        new THREE.Vector3(isFront ? 0.10 : 0.115, 0.045, 0.14)
-    );
-
-    leg.add(thigh, foot);
-    return leg;
-}
-
-function createLowPolyBear() {
-    const materials = createBearMaterials();
-    const group = new THREE.Group();
-    group.name = "bearGroup";
-
-    const bodyPivot = new THREE.Group();
-    bodyPivot.name = "bearBody";
-    bodyPivot.position.set(0, 0.40, 0);
-    bodyPivot.userData.restY = 0.40;
-
-    const body = createBearMesh(
-        new THREE.SphereGeometry(1, 8, 6),
-        materials.fur,
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0.36, 0.30, 0.50)
-    );
-
-    const hump = createBearMesh(
-        new THREE.SphereGeometry(1, 7, 5),
-        materials.furDark,
-        new THREE.Vector3(0, 0.18, -0.12),
-        new THREE.Vector3(0.22, 0.14, 0.24)
-    );
-
-    const tailPivot = new THREE.Group();
-    tailPivot.name = "bearTail";
-    tailPivot.position.set(0, -0.04, -0.48);
-
-    const tail = createBearMesh(
-        new THREE.SphereGeometry(1, 6, 4),
-        materials.furDark,
-        new THREE.Vector3(0, 0, -0.04),
-        new THREE.Vector3(0.07, 0.065, 0.09)
-    );
-    tailPivot.add(tail);
-
-    bodyPivot.add(body, hump, tailPivot);
-
-    const headPivot = new THREE.Group();
-    headPivot.name = "bearHead";
-    headPivot.position.set(0, 0.14, 0.40);
-    headPivot.userData.restX = 0;
-    headPivot.userData.restY = 0;
-
-    const head = createBearMesh(
-        new THREE.SphereGeometry(1, 8, 6),
-        materials.fur,
-        new THREE.Vector3(0, 0.08, 0.08),
-        new THREE.Vector3(0.22, 0.20, 0.20)
-    );
-
-    const muzzle = createBearMesh(
-        new THREE.SphereGeometry(1, 7, 5),
-        materials.muzzle,
-        new THREE.Vector3(0, 0.03, 0.26),
-        new THREE.Vector3(0.10, 0.08, 0.14)
-    );
-
-    const nose = createBearMesh(
-        new THREE.SphereGeometry(1, 6, 4),
-        materials.nose,
-        new THREE.Vector3(0, 0.045, 0.39),
-        new THREE.Vector3(0.035, 0.03, 0.03)
-    );
-
-    const leftEar = createBearMesh(
-        new THREE.SphereGeometry(1, 6, 4),
-        materials.fur,
-        new THREE.Vector3(-0.14, 0.24, 0.02),
-        new THREE.Vector3(0.08, 0.09, 0.06)
-    );
-    const rightEar = createBearMesh(
-        new THREE.SphereGeometry(1, 6, 4),
-        materials.fur,
-        new THREE.Vector3(0.14, 0.24, 0.02),
-        new THREE.Vector3(0.08, 0.09, 0.06)
-    );
-
-    const leftEarInner = createBearMesh(
-        new THREE.SphereGeometry(1, 5, 4),
-        materials.earInner,
-        new THREE.Vector3(-0.14, 0.24, 0.055),
-        new THREE.Vector3(0.045, 0.05, 0.02)
-    );
-    const rightEarInner = createBearMesh(
-        new THREE.SphereGeometry(1, 5, 4),
-        materials.earInner,
-        new THREE.Vector3(0.14, 0.24, 0.055),
-        new THREE.Vector3(0.045, 0.05, 0.02)
-    );
-
-    const leftEye = createBearMesh(
-        new THREE.SphereGeometry(1, 5, 4),
-        materials.eye,
-        new THREE.Vector3(-0.08, 0.12, 0.24),
-        new THREE.Vector3(0.028, 0.032, 0.028)
-    );
-    const rightEye = createBearMesh(
-        new THREE.SphereGeometry(1, 5, 4),
-        materials.eye,
-        new THREE.Vector3(0.08, 0.12, 0.24),
-        new THREE.Vector3(0.028, 0.032, 0.028)
-    );
-
-    headPivot.add(
-        head,
-        muzzle,
-        nose,
-        leftEar,
-        rightEar,
-        leftEarInner,
-        rightEarInner,
-        leftEye,
-        rightEye
-    );
-    bodyPivot.add(headPivot);
-
-    const frontLeftLeg = createBearLeg(materials, -0.18, 0.24, true);
-    const frontRightLeg = createBearLeg(materials, 0.18, 0.24, true);
-    const backLeftLeg = createBearLeg(materials, -0.20, -0.28, false);
-    const backRightLeg = createBearLeg(materials, 0.20, -0.28, false);
-
-    frontLeftLeg.name = "bearFrontLeftLeg";
-    frontRightLeg.name = "bearFrontRightLeg";
-    backLeftLeg.name = "bearBackLeftLeg";
-    backRightLeg.name = "bearBackRightLeg";
-
-    group.add(bodyPivot, frontLeftLeg, frontRightLeg, backLeftLeg, backRightLeg);
-
-    bearGroup = group;
-    bearBody = bodyPivot;
-    bearHead = headPivot;
-    bearFrontLegs = { left: frontLeftLeg, right: frontRightLeg };
-    bearBackLegs = { left: backLeftLeg, right: backRightLeg };
-    bearTail = tailPivot;
-
-    group.userData.parts = {
-        body: bodyPivot,
-        head: headPivot,
-        frontLegs: bearFrontLegs,
-        backLegs: bearBackLegs,
-        tail: tailPivot
-    };
-
-    return group;
-}
-
-function getBearFacingYaw(from, to) {
-    return Math.atan2(to.x - from.x, -(to.y - from.y));
-}
-
-function lerpAngle(current, target, maxStep) {
-    let diff = target - current;
-
-    while (diff > Math.PI) {
-        diff -= Math.PI * 2;
-    }
-
-    while (diff < -Math.PI) {
-        diff += Math.PI * 2;
-    }
-
-    if (Math.abs(diff) <= maxStep) {
-        return target;
-    }
-
-    return current + Math.sign(diff) * maxStep;
-}
-
-function createProceduralBear() {
-    if (bearModel) {
-        return Promise.resolve(bearModel);
-    }
-
-    const visual = createLowPolyBear();
-    placeCharacterOnTarget(visual, BEAR_HEIGHT);
-
-    const start = bearWaypoints[0];
-    const next = bearWaypoints[1];
-    const yaw = getBearFacingYaw(start, next);
-
-    bearModel = createPlacedModelGroup(visual, start, yaw);
-    bearModel.name = "bearModel";
-    bearModel.userData.isProcedural = true;
-    bearWaypointIndex = 0;
-    bearWalkAmount = 0;
-
-    return Promise.resolve(bearModel);
-}
-
-function updateBearAnimation(delta, elapsedTime) {
-    if (!bearBody || !bearHead || !bearTail) {
-        return;
-    }
-
-    bearWalkDisplay = THREE.MathUtils.damp(bearWalkDisplay, bearWalkAmount, 8, delta);
-
-    const amount = bearWalkDisplay;
-    const t = elapsedTime * BEAR_WALK_FREQUENCY;
-    const swing = Math.sin(t) * 0.42 * amount;
-    const idle = 1 - amount;
-
-    if (bearFrontLegs.left) {
-        bearFrontLegs.left.rotation.x = swing;
-    }
-
-    if (bearBackLegs.right) {
-        bearBackLegs.right.rotation.x = swing;
-    }
-
-    if (bearFrontLegs.right) {
-        bearFrontLegs.right.rotation.x = -swing;
-    }
-
-    if (bearBackLegs.left) {
-        bearBackLegs.left.rotation.x = -swing;
-    }
-
-    bearBody.position.y = bearBody.userData.restY + Math.abs(Math.sin(t * 2)) * 0.018 * amount;
-    bearBody.rotation.z = Math.sin(t) * 0.07 * amount;
-    bearBody.rotation.x = Math.sin(t * 2) * 0.045 * amount + Math.sin(elapsedTime * 1.4) * 0.02 * idle;
-
-    bearHead.rotation.x = Math.sin(t * 2) * 0.08 * amount + Math.sin(elapsedTime * 1.1) * 0.03 * idle;
-    bearHead.rotation.y = Math.sin(t * 0.5) * 0.10 * amount;
-
-    bearTail.rotation.z = Math.sin(t * 2.2) * 0.35 * amount + Math.sin(elapsedTime * 2) * 0.12 * idle;
-}
-
-function updateBearMovement(delta) {
-    if (!bearModel || !bearModel.userData.isProcedural) {
-        bearWalkAmount = 0;
-        return;
-    }
-
-    const target = bearWaypoints[bearWaypointIndex];
-    const position = bearModel.position;
-    const dx = target.x - position.x;
-    const dy = target.y - position.y;
-    const distance = Math.hypot(dx, dy);
-
-    if (distance <= BEAR_WAYPOINT_EPSILON) {
-        bearWaypointIndex = (bearWaypointIndex + 1) % bearWaypoints.length;
-        return;
-    }
-
-    const desiredYaw = getBearFacingYaw(position, target);
-    bearModel.rotation.z = lerpAngle(
-        bearModel.rotation.z,
-        desiredYaw,
-        BEAR_TURN_SPEED * delta
-    );
-
-    const step = Math.min(BEAR_MOVE_SPEED * delta, distance);
-    position.x += (dx / distance) * step;
-    position.y += (dy / distance) * step;
-    position.z = 0;
-
-    bearWalkAmount = 1;
-}
-
 function loadNeftanikModel() {
     if (neftanikModel) {
         return Promise.resolve(neftanikModel);
@@ -749,10 +407,11 @@ async function startAR() {
             const delta = Math.min(animationClock.getDelta(), 0.05);
             const elapsedTime = animationClock.getElapsedTime();
 
-            if (USE_PROCEDURAL_BEAR && bearModel) {
-                updateBearMovement(delta);
-                updateBearAnimation(delta, elapsedTime);
-            }
+            updateProceduralScene(delta, elapsedTime, {
+                bears: USE_PROCEDURAL_BEAR,
+                workers: USE_PROCEDURAL_WORKER,
+                rig: USE_PROCEDURAL_RIG
+            });
 
             renderer.render(scene, camera);
         });
@@ -778,22 +437,49 @@ async function startAR() {
 
     const modelErrors = [];
 
-    const modelJobs = [
-        {
+    const modelJobs = [];
+
+    if (USE_PROCEDURAL_RIG) {
+        modelJobs.push(
+            {
+                load: createProceduralOilRig,
+                message: "Не удалось создать процедурную нефтяную вышку."
+            },
+            {
+                load: createProceduralSite,
+                message: "Не удалось создать инфраструктуру нефтяной площадки."
+            }
+        );
+    } else {
+        modelJobs.push({
             load: loadOilRigModel,
             message: "Не удалось загрузить 3D-модель нефтяной буровой установки. Проверьте файл assets/models/oil-rig-optimized.glb и попробуйте снова."
-        },
-        {
-            load: USE_PROCEDURAL_BEAR ? createProceduralBear : loadBearModel,
-            message: USE_PROCEDURAL_BEAR
-                ? "Не удалось создать процедурную модель медведя."
-                : "Не удалось загрузить 3D-модель медведя. Проверьте файл assets/models/bear.glb и попробуйте снова."
-        },
-        {
+        });
+    }
+
+    if (USE_PROCEDURAL_BEAR) {
+        modelJobs.push({
+            load: createProceduralBears,
+            message: "Не удалось создать процедурных медведей."
+        });
+    } else {
+        modelJobs.push({
+            load: loadBearModel,
+            message: "Не удалось загрузить 3D-модель медведя. Проверьте файл assets/models/bear.glb и попробуйте снова."
+        });
+    }
+
+    if (USE_PROCEDURAL_WORKER) {
+        modelJobs.push({
+            load: createProceduralWorkers,
+            message: "Не удалось создать процедурных нефтяников."
+        });
+    } else {
+        modelJobs.push({
             load: loadNeftanikModel,
             message: "Не удалось загрузить 3D-модель нефтяника. Проверьте файл assets/models/neftanik.glb и попробуйте снова."
-        }
-    ];
+        });
+    }
 
     await Promise.all(modelJobs.map(async (job) => {
         try {
