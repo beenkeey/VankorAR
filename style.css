@@ -84,6 +84,15 @@ body {
     font-size: 14px;
 }
 
+#ar-interaction-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.001);
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
 #ar-controls {
     position: fixed;
     top: 16px;

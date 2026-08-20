@@ -12,7 +12,7 @@ import {
     bindSceneInteraction,
     unbindSceneInteraction,
     updateSceneInteraction
-} from "./interaction.js?v=7";
+} from "./interaction.js?v=9";
 
 const IMAGE_TARGET_SRC = "./assets/vankor-land.mind";
 const OIL_RIG_SRC = "./assets/models/oil-rig-optimized.glb";

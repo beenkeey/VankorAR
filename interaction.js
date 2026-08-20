@@ -10,6 +10,7 @@ const pointerNdc = new THREE.Vector2();
 
 let camera = null;
 let renderer = null;
+let hitLayer = null;
 let getTrackingVisible = () => true;
 let selectedObject = null;
 let highlightPulse = 0;
@@ -29,6 +30,10 @@ function isUiEventTarget(target) {
         && target.closest
         && target.closest("#info-card-panel, #ar-controls, #start-screen, #start-button, #stop-button")
     );
+}
+
+function stopUiEvent(event) {
+    event.stopPropagation();
 }
 
 function findInteractiveRoot(object) {
@@ -133,6 +138,8 @@ function hideCard() {
 }
 
 function selectObject(object) {
+    console.log("[interaction] select", object.userData.interactiveType);
+
     if (selectedObject) {
         restoreHighlight(getHighlightRoot(selectedObject));
     }
@@ -151,9 +158,11 @@ function selectObject(object) {
     }
 }
 
-function eventToNdc(clientX, clientY) {
-    const element = renderer.domElement;
-    const rect = element.getBoundingClientRect();
+function getPointerNDC(clientX, clientY) {
+    const canvas = renderer && renderer.domElement;
+    const rect = canvas
+        ? canvas.getBoundingClientRect()
+        : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
     const width = rect.width || 1;
     const height = rect.height || 1;
 
@@ -161,22 +170,33 @@ function eventToNdc(clientX, clientY) {
         ((clientX - rect.left) / width) * 2 - 1,
         -((clientY - rect.top) / height) * 2 + 1
     );
+
+    return pointerNdc;
 }
 
 function pickInteractive(clientX, clientY) {
     if (!camera || !renderer || !getTrackingVisible()) {
+        console.log("[interaction] raycaster", {
+            skipped: true,
+            trackingVisible: getTrackingVisible()
+        });
         return null;
     }
 
-    eventToNdc(clientX, clientY);
-    raycaster.setFromCamera(pointerNdc, camera);
+    const ndc = getPointerNDC(clientX, clientY);
+    raycaster.setFromCamera(ndc, camera);
 
-    const hits = raycaster.intersectObjects(getInteractiveObjects(), true);
-    if (!hits.length) {
-        return null;
-    }
+    const targets = getInteractiveObjects();
+    const hits = raycaster.intersectObjects(targets, true);
+    const root = hits.length ? findInteractiveRoot(hits[0].object) : null;
 
-    return findInteractiveRoot(hits[0].object);
+    console.log("[interaction] raycaster", {
+        ndc: { x: Number(ndc.x.toFixed(3)), y: Number(ndc.y.toFixed(3)) },
+        hitCount: hits.length,
+        type: root && root.userData.interactiveType
+    });
+
+    return root;
 }
 
 function handleTap(clientX, clientY) {
@@ -210,6 +230,8 @@ function shouldIgnoreDuplicate() {
 }
 
 function onPointerDown(event) {
+    console.log("[interaction] pointerdown", event.pointerType || "unknown");
+
     if (event.isPrimary === false) {
         return;
     }
@@ -280,12 +302,47 @@ function cacheCard() {
     card.action = document.querySelector("#info-card-action");
 
     const closeButton = document.querySelector("#info-card-close");
+    const panel = document.querySelector("#info-card-panel");
+    const controls = document.querySelector("#ar-controls");
+
     if (closeButton) {
+        closeButton.addEventListener("pointerdown", stopUiEvent);
+        closeButton.addEventListener("touchstart", stopUiEvent, { passive: true });
         closeButton.addEventListener("click", onCloseClick);
     }
     if (card.action) {
+        card.action.addEventListener("pointerdown", stopUiEvent);
+        card.action.addEventListener("touchstart", stopUiEvent, { passive: true });
         card.action.addEventListener("click", onActionClick);
     }
+    if (panel) {
+        panel.addEventListener("pointerdown", stopUiEvent);
+        panel.addEventListener("touchstart", stopUiEvent, { passive: true });
+        panel.addEventListener("click", stopUiEvent);
+    }
+    if (controls) {
+        controls.addEventListener("pointerdown", stopUiEvent);
+        controls.addEventListener("touchstart", stopUiEvent, { passive: true });
+        controls.addEventListener("click", stopUiEvent);
+    }
+}
+
+function getHitLayer() {
+    if (hitLayer) {
+        return hitLayer;
+    }
+
+    hitLayer = document.querySelector("#ar-interaction-layer");
+    return hitLayer;
+}
+
+function setHitLayerActive(active) {
+    const layer = getHitLayer();
+    if (!layer) {
+        return;
+    }
+
+    layer.classList.toggle("hidden", !active);
 }
 
 export function bindSceneInteraction(options) {
@@ -297,25 +354,28 @@ export function bindSceneInteraction(options) {
         cacheCard();
     }
 
-    if (bound || !renderer) {
+    const layer = getHitLayer();
+    if (bound || !layer) {
+        setHitLayerActive(Boolean(layer));
         return;
     }
 
-    const element = renderer.domElement;
-    element.addEventListener("pointerdown", onPointerDown);
-    element.addEventListener("touchstart", onTouchStart, { passive: true });
-    element.addEventListener("click", onClick);
+    layer.addEventListener("pointerdown", onPointerDown);
+    layer.addEventListener("touchstart", onTouchStart, { passive: true });
+    layer.addEventListener("click", onClick);
+    setHitLayerActive(true);
     bound = true;
 }
 
 export function unbindSceneInteraction() {
-    if (renderer && bound) {
-        const element = renderer.domElement;
-        element.removeEventListener("pointerdown", onPointerDown);
-        element.removeEventListener("touchstart", onTouchStart);
-        element.removeEventListener("click", onClick);
+    const layer = getHitLayer();
+    if (layer && bound) {
+        layer.removeEventListener("pointerdown", onPointerDown);
+        layer.removeEventListener("touchstart", onTouchStart);
+        layer.removeEventListener("click", onClick);
     }
 
+    setHitLayerActive(false);
     bound = false;
     clearSelection();
 }
