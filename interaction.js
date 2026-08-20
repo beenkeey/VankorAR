@@ -1,3 +1,10 @@
+/*
+ * VankorAR interaction layer
+ * Original author: Данил Каханов
+ * Tap/click selection, highlight, and info cards
+ * 2026
+ */
+
 import * as THREE from "three";
 import {
     getInteractiveObjects,
@@ -5,7 +12,7 @@ import {
     isRigDemoRunning,
     requestPumpjackWorkDemo,
     requestRigWorkDemo
-} from "./procedural-scene.js?v=10";
+} from "./procedural-scene.js?v=12";
 
 const raycaster = new THREE.Raycaster();
 const pointerNdc = new THREE.Vector2();
@@ -26,7 +33,8 @@ const card = {
     root: null,
     title: null,
     description: null,
-    action: null
+    action: null,
+    badge: null
 };
 
 function isUiEventTarget(target) {
@@ -144,6 +152,12 @@ function showCard(object) {
 
     card.title.textContent = object.userData.title || "";
     card.description.textContent = object.userData.description || "";
+
+    const showSiteBadge = object.userData.interactiveType === "rig"
+        || object.userData.interactiveType === "pumpjack";
+    if (card.badge) {
+        card.badge.classList.toggle("hidden", !showSiteBadge);
+    }
 
     const showAction = object.userData.interactiveType === "rig"
         || object.userData.interactiveType === "pumpjack";
@@ -323,6 +337,7 @@ function cacheCard() {
     card.title = document.querySelector("#info-card-title");
     card.description = document.querySelector("#info-card-description");
     card.action = document.querySelector("#info-card-action");
+    card.badge = document.querySelector("#info-card-badge");
 
     const closeButton = document.querySelector("#info-card-close");
     const panel = document.querySelector("#info-card-panel");

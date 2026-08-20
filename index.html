@@ -8,7 +8,7 @@
 
     <title>Vankor AR</title>
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=11">
 
     <script type="importmap">
     {
@@ -27,8 +27,10 @@
     <div id="ar-interaction-layer" class="hidden"></div>
 
     <div id="start-screen">
+        <p id="brand-line">РН-Ванкор</p>
         <h1>Ванкор AR</h1>
-        <p>Наведите камеру на изображение</p>
+        <p id="start-subtitle">Интерактивная AR-визуализация нефтяного промысла</p>
+        <p id="start-hint">Наведите камеру на изображение</p>
 
         <p id="error-message" hidden></p>
 
@@ -52,13 +54,14 @@
         <div id="info-card-dim"></div>
         <div id="info-card-panel">
             <button id="info-card-close" type="button" aria-label="Закрыть">×</button>
+            <span id="info-card-badge" class="hidden">РН-Ванкор</span>
             <h2 id="info-card-title"></h2>
             <p id="info-card-description"></p>
             <button id="info-card-action" type="button" class="hidden">Показать, как работает</button>
         </div>
     </div>
 
-    <script type="module" src="app.js?v=10"></script>
+    <script type="module" src="app.js?v=12"></script>
 
 </body>
 </html>

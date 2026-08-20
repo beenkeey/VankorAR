@@ -1,3 +1,10 @@
+/*
+ * VankorAR procedural scene
+ * Original author: Данил Каханов
+ * Procedural oilfield scene, characters, and site logic
+ * 2026
+ */
+
 import * as THREE from "three";
 
 const BEAR_HEIGHT = 0.065;
@@ -540,6 +547,7 @@ function getKit() {
             sphereMid: new THREE.SphereGeometry(1, 7, 5),
             sphereLow: new THREE.SphereGeometry(1, 6, 4),
             sphereTiny: new THREE.SphereGeometry(1, 5, 4),
+            ico: new THREE.IcosahedronGeometry(1, 0),
             capsule: new THREE.CapsuleGeometry(0.075, 0.14, 2, 6),
             cyl: new THREE.CylinderGeometry(1, 1, 1, 8),
             cylLow: new THREE.CylinderGeometry(1, 1, 1, 6),
@@ -547,27 +555,32 @@ function getKit() {
             torus: new THREE.TorusGeometry(1, 0.22, 6, 10)
         },
         mat: {
-            fur: standard(0x5a341c, 0.9),
-            furDark: standard(0x3f2416, 0.92),
-            muzzle: standard(0xd2b48c, 0.78),
+            fur: standard(0xe6ebef, 0.94),
+            furDark: standard(0xc5cdd4, 0.95),
+            furPaw: standard(0xdde3e8, 0.94),
+            pawPad: standard(0xa8b2b8, 0.92),
+            muzzle: standard(0xd2d8de, 0.9),
             nose: standard(0x1a120c, 0.55),
             eye: standard(0x0a0a0a, 0.35),
-            earInner: standard(0x8d5344, 0.85),
-            steel: lambert(0x4d5359),
-            steelDark: lambert(0x2c3236),
-            steelLight: lambert(0x6a7278),
+            earInner: standard(0xc9b8b6, 0.9),
+            snow: lambert(0xf4f8fb),
+            snowShade: lambert(0xd5dee5),
+            steel: lambert(0x3e454c),
+            steelDark: lambert(0x22272c),
+            steelLight: lambert(0x5c646c),
             yellow: lambert(0xe6b325),
             orange: lambert(0xd35400),
-            tank: lambert(0xc5ccd1),
-            tankDark: lambert(0x7d868c),
+            tank: lambert(0xb7bec4),
+            tankDark: lambert(0x6f777e),
             concrete: lambert(0x7a7d80),
             rust: lambert(0x6b3e2e),
-            suit: lambert(0xc45c12),
-            suitDark: lambert(0x3a3d44),
+            suit: lambert(0x1a1d22),
+            suitDark: lambert(0x121416),
             helmet: lambert(0xf0c419),
             skin: lambert(0xc6865a),
-            boot: lambert(0x1c1c1c),
-            glove: lambert(0x2a2a2a),
+            boot: lambert(0x141414),
+            glove: lambert(0x1b1b1b),
+            reflect: lambert(0xc8ced4),
             containerBlue: lambert(0x2e6aa6),
             containerRed: lambert(0xa33b2b),
             bark: lambert(0x5a3b24),
@@ -597,6 +610,36 @@ function addPart(parent, geo, mat, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) 
     mesh.rotation.set(rx, ry, rz);
     parent.add(mesh);
     return mesh;
+}
+
+function addBrandMark(parent, x, y, z, scale = 1, ry = 0) {
+    const { geo, mat } = getKit();
+    const mark = new THREE.Group();
+    mark.name = "brandMark";
+    mark.position.set(x, y, z);
+    mark.rotation.y = ry;
+    addPart(mark, geo.box, mat.steelDark, 0, 0, 0, 0.026 * scale, 0.026 * scale, 0.005 * scale);
+    addPart(mark, geo.box, mat.yellow, 0, 0.002 * scale, 0.0036 * scale, 0.006 * scale, 0.016 * scale, 0.003 * scale);
+    addPart(mark, geo.box, mat.yellow, 0.007 * scale, -0.005 * scale, 0.0036 * scale, 0.014 * scale, 0.005 * scale, 0.003 * scale);
+    addPart(mark, geo.box, mat.reflect, -0.007 * scale, 0.007 * scale, 0.0036 * scale, 0.006 * scale, 0.006 * scale, 0.002 * scale);
+    parent.add(mark);
+    return mark;
+}
+
+function addBrandPlaque(parent, x, y, z, rx = 0, ry = 0, rz = 0, scale = 1) {
+    const { geo, mat } = getKit();
+    const plaque = new THREE.Group();
+    plaque.name = "brandPlaque";
+    plaque.position.set(x, y, z);
+    plaque.rotation.set(rx, ry, rz);
+    addPart(plaque, geo.box, mat.steelDark, 0, 0, 0, 0.09 * scale, 0.032 * scale, 0.008 * scale);
+    addPart(plaque, geo.box, mat.yellow, 0, 0.013 * scale, 0.005 * scale, 0.09 * scale, 0.004 * scale, 0.002 * scale);
+    addPart(plaque, geo.box, mat.yellow, 0, -0.013 * scale, 0.005 * scale, 0.09 * scale, 0.004 * scale, 0.002 * scale);
+    addBrandMark(plaque, -0.026 * scale, 0, 0.006 * scale, 0.85 * scale);
+    addPart(plaque, geo.box, mat.yellow, 0.016 * scale, 0.004 * scale, 0.005 * scale, 0.032 * scale, 0.004 * scale, 0.002 * scale);
+    addPart(plaque, geo.box, mat.reflect, 0.014 * scale, -0.004 * scale, 0.005 * scale, 0.026 * scale, 0.003 * scale, 0.002 * scale);
+    parent.add(plaque);
+    return plaque;
 }
 
 function addStrut(parent, geo, mat, x1, y1, z1, x2, y2, z2, radius) {
@@ -861,7 +904,7 @@ function createBearLeg(shared, x, z, isFront) {
     const leg = new THREE.Group();
     leg.position.set(x, 0.30, z);
 
-    const thigh = new THREE.Mesh(geo.capsule, mat.furDark);
+    const thigh = new THREE.Mesh(geo.capsule, mat.furPaw);
     thigh.position.y = -0.12;
     if (isFront) {
         thigh.scale.set(0.93, 1, 0.93);
@@ -869,7 +912,7 @@ function createBearLeg(shared, x, z, isFront) {
 
     const foot = createBearMesh(
         geo.sphereLow,
-        mat.furDark,
+        mat.pawPad,
         new THREE.Vector3(0, -0.28, 0.035),
         new THREE.Vector3(isFront ? 0.10 : 0.115, 0.045, 0.14)
     );
@@ -899,7 +942,7 @@ export function createLowPolyBear() {
     tailPivot.position.set(0, -0.04, -0.48);
     tailPivot.add(createBearMesh(
         geo.sphereLow,
-        mat.furDark,
+        mat.fur,
         new THREE.Vector3(0, 0, -0.04),
         new THREE.Vector3(0.07, 0.065, 0.09)
     ));
@@ -969,8 +1012,8 @@ export function createBearInstance(config) {
     markInteractive(
         root,
         "bear",
-        "Бурый медведь",
-        "Северная тайга — территория, где промышленная работа соседствует с дикой природой."
+        "Белый медведь",
+        "Северный ландшафт рядом с промышленной площадкой напоминает о том, что работа человека здесь проходит в суровой природной среде."
     );
 
     return root;
@@ -1171,7 +1214,14 @@ export function createProceduralOilWorker() {
 
     const torso = addPart(body, geo.box, mat.suit, 0, 0.04, 0, 0.22, 0.28, 0.14);
     addPart(body, geo.box, mat.suitDark, 0, -0.08, 0.01, 0.20, 0.10, 0.13);
+    addPart(body, geo.box, mat.yellow, -0.09, 0.15, 0.01, 0.08, 0.04, 0.13);
+    addPart(body, geo.box, mat.yellow, 0.09, 0.15, 0.01, 0.08, 0.04, 0.13);
+    addPart(body, geo.box, mat.reflect, 0, 0.09, 0.074, 0.18, 0.012, 0.008);
+    addPart(body, geo.box, mat.reflect, 0, 0.02, 0.074, 0.18, 0.01, 0.008);
+    addPart(body, geo.box, mat.yellow, 0, -0.04, 0.074, 0.16, 0.008, 0.006);
+    addBrandMark(body, 0.045, 0.055, 0.08, 0.72);
     const backpack = addPart(body, geo.box, mat.suitDark, 0, 0.05, -0.09, 0.14, 0.16, 0.06);
+    addPart(body, geo.box, mat.reflect, 0, 0.05, -0.122, 0.12, 0.01, 0.004);
 
     const head = new THREE.Group();
     head.name = "head";
@@ -1180,16 +1230,21 @@ export function createProceduralOilWorker() {
     const helmet = new THREE.Group();
     helmet.name = "helmet";
     addPart(helmet, geo.cylLow, mat.helmet, 0, 0.06, 0, 0.09, 0.06, 0.09);
+    addPart(helmet, geo.cylLow, mat.suitDark, 0, 0.042, 0, 0.093, 0.012, 0.093);
     addPart(helmet, geo.cylLow, mat.helmet, 0, 0.035, 0.04, 0.10, 0.015, 0.11);
+    addBrandMark(helmet, 0, 0.058, 0.05, 0.42);
     head.add(helmet);
     body.add(head);
 
     const leftArm = createLimb(shared, true);
     leftArm.name = "leftArm";
     leftArm.position.set(-0.14, 0.12, 0);
+    addPart(leftArm, geo.box, mat.yellow, 0, -0.09, 0.02, 0.04, 0.02, 0.014);
+    addPart(leftArm, geo.box, mat.reflect, 0, -0.14, 0.02, 0.036, 0.008, 0.01);
     const rightArm = createLimb(shared, true);
     rightArm.name = "rightArm";
     rightArm.position.set(0.14, 0.12, 0);
+    addPart(rightArm, geo.box, mat.reflect, 0, -0.14, 0.02, 0.036, 0.008, 0.01);
     body.add(leftArm, rightArm);
 
     const hips = new THREE.Group();
@@ -1872,18 +1927,24 @@ function attachTerminalFx(panel, lightColor) {
 }
 
 function createRigControlPanel() {
+    const { geo, mat } = getKit();
     const panel = createControlPanelMesh();
     panel.name = "rigControlPanel";
     panel.position.set(RIG_TERMINAL_LOCAL.x, RIG_TERMINAL_LOCAL.y, RIG_TERMINAL_LOCAL.z);
     rigTerminalFx = attachTerminalFx(panel, 0x66ccff);
     setRigTerminalActive(false);
+    addPart(panel, geo.box, mat.yellow, 0, 0.016, 0.02, 0.052, 0.006, 0.004);
+    addBrandPlaque(panel, 0, 0.038, 0.028, 0, 0, 0, 0.42);
     return panel;
 }
 
 function createPumpjackControlPanel() {
+    const { geo, mat } = getKit();
     const visual = createControlPanelMesh();
     pumpjackTerminalFx = attachTerminalFx(visual, 0x66ccff);
     setPumpjackTerminalActive(false);
+    addPart(visual, geo.box, mat.yellow, 0, 0.016, 0.02, 0.052, 0.006, 0.004);
+    addBrandMark(visual, -0.026, 0.038, 0.024, 0.5);
     placeYUpByHeight(visual, 0.052);
     const root = createPlacedGroup(visual, PUMPJACK_PANEL_POSITION, 0);
     root.name = "pumpjackControlPanel";
@@ -2004,7 +2065,10 @@ export function createProceduralOilRig() {
     addPart(visual, geo.box, mat.steelDark, 0, 0.08, 0, 0.42, 0.04, 0.42);
     addPart(visual, geo.box, mat.yellow, 0.21, 0.09, 0, 0.03, 0.03, 0.42);
     addPart(visual, geo.box, mat.yellow, -0.21, 0.09, 0, 0.03, 0.03, 0.42);
+    addPart(visual, geo.box, mat.suitDark, 0, 0.105, 0.21, 0.16, 0.012, 0.02);
+    addPart(visual, geo.box, mat.yellow, 0, 0.105, 0.222, 0.16, 0.006, 0.006);
     addPart(visual, geo.box, mat.steelDark, -0.08, 0.16, 0.08, 0.16, 0.12, 0.14);
+    addBrandPlaque(visual, 0, 0.13, 0.22, 0, 0, 0, 0.85);
 
     corners.forEach(([i, j]) => {
         const [x1, y1, z1] = cornerPos(i, j, 0.08);
@@ -2058,7 +2122,7 @@ export function createProceduralOilRig() {
     addPart(visual, geo.cylLow, mat.steelLight, 0, 1.61, 0.018, 0.016, 0.05, 0.016, 0, 0, Math.PI / 2);
     addPart(visual, geo.cylLow, mat.steelLight, 0, 1.61, -0.018, 0.016, 0.05, 0.016, 0, 0, Math.PI / 2);
     addPart(visual, geo.box, mat.steel, 0, 1.64, 0, 0.05, 0.03, 0.04);
-    addPart(visual, geo.box, mat.orange, 0, 1.58, 0.04, 0.03, 0.03, 0.02);
+    addPart(visual, geo.box, mat.yellow, 0, 1.58, 0.04, 0.03, 0.03, 0.02);
 
     addPart(visual, geo.cylLow, mat.steelDark, 0, 0.56, 0, 0.018, 0.88, 0.018);
 
@@ -2121,6 +2185,8 @@ function createPumpjack() {
 
     addPart(visual, geo.box, mat.steelDark, 0, 0.03, 0, 0.36, 0.06, 0.16);
     addPart(visual, geo.box, mat.yellow, 0, 0.07, 0.07, 0.36, 0.02, 0.02);
+    addPart(visual, geo.box, mat.suitDark, 0.10, 0.08, 0.082, 0.10, 0.012, 0.008);
+    addBrandPlaque(visual, 0.10, 0.11, 0.086, 0, 0, 0, 0.7);
     addPart(visual, geo.box, mat.steel, -0.04, 0.22, 0.04, 0.04, 0.36, 0.04);
     addPart(visual, geo.box, mat.steel, -0.04, 0.22, -0.04, 0.04, 0.36, 0.04);
     addPart(visual, geo.box, mat.steel, -0.04, 0.38, 0, 0.05, 0.05, 0.12);
@@ -2128,7 +2194,7 @@ function createPumpjack() {
     const beam = new THREE.Group();
     beam.position.set(-0.04, 0.40, 0);
     addPart(beam, geo.box, mat.steelLight, 0.06, 0, 0, 0.46, 0.045, 0.05);
-    addPart(beam, geo.box, mat.orange, 0.28, -0.04, 0, 0.10, 0.12, 0.06);
+    addPart(beam, geo.box, mat.yellow, 0.28, -0.04, 0, 0.10, 0.12, 0.06);
     addPart(beam, geo.box, mat.steelDark, -0.18, 0.03, 0, 0.10, 0.08, 0.08);
     addPart(beam, geo.cylLow, mat.steelDark, 0.30, -0.16, 0, 0.012, 0.22, 0.012);
     visual.add(beam);
@@ -2178,6 +2244,7 @@ function createTanks() {
     addPart(visual, geo.box, mat.steelLight, 0.212, 0.092, 0, 0.008, 0.024, 0.024);
 
     addPart(visual, geo.box, mat.concrete, 0, 0.015, 0, 0.42, 0.03, 0.22);
+    addBrandPlaque(visual, 0, 0.08, 0.12, 0, 0, 0, 0.75);
 
     placeYUpByFootprint(visual, 0.18);
     const root = createPlacedGroup(visual, TANKS_POSITION, 0);
@@ -2429,6 +2496,37 @@ function createStump() {
     return stump;
 }
 
+function createSnowDrift(variant = 0) {
+    const { geo, mat } = getKit();
+    const drift = new THREE.Group();
+    drift.name = "snowDrift";
+
+    if (variant === 1) {
+        addPart(drift, geo.sphereLow, mat.snow, 0, 0.012, 0, 0.058, 0.016, 0.026);
+        addPart(drift, geo.ico, mat.snowShade, 0.018, 0.01, 0.004, 0.022, 0.012, 0.018);
+        addPart(drift, geo.sphereTiny, mat.snow, -0.02, 0.008, -0.004, 0.018, 0.01, 0.016);
+    } else if (variant === 2) {
+        addPart(drift, geo.sphere, mat.snow, 0, 0.018, 0, 0.08, 0.028, 0.068);
+        addPart(drift, geo.ico, mat.snowShade, -0.028, 0.02, 0.01, 0.04, 0.022, 0.034);
+        addPart(drift, geo.cone, mat.snow, 0.024, 0.014, -0.012, 0.03, 0.02, 0.03);
+        addPart(drift, geo.sphereLow, mat.snowShade, 0.01, 0.012, 0.02, 0.032, 0.014, 0.028);
+    } else {
+        addPart(drift, geo.sphereLow, mat.snow, 0, 0.012, 0, 0.038, 0.016, 0.032);
+        addPart(drift, geo.ico, mat.snowShade, 0.012, 0.01, 0.006, 0.018, 0.01, 0.016);
+        addPart(drift, geo.sphereTiny, mat.snow, -0.01, 0.008, -0.008, 0.016, 0.009, 0.014);
+    }
+
+    return drift;
+}
+
+function isSnowSpotFree(x, y) {
+    if (isPointInsideSceneObstacle({ x, y }, 0.05)) {
+        return false;
+    }
+
+    return !WORK_ZONES.some((zone) => isInsideObstacle(x, y, zone, 0.03));
+}
+
 function placeNatureItem(factory, position, height, yaw = 0) {
     const visual = factory();
     placeYUpByHeight(visual, height);
@@ -2504,6 +2602,46 @@ function createProceduralNature() {
             return;
         }
         natureRoot.add(placeNatureItem(createStump, { x, y, z: 0 }, 0.022));
+    });
+
+    const smallDrifts = [
+        [-0.36, 0.29, 0.016, 0.4], [-0.31, 0.32, 0.014, 1.1], [-0.37, 0.20, 0.018, 0.2],
+        [-0.36, 0.10, 0.015, 2.4], [-0.37, -0.16, 0.017, 0.8], [-0.35, -0.30, 0.015, 1.7],
+        [-0.12, -0.33, 0.014, 0.3], [0.12, -0.33, 0.016, 2.1], [0.35, -0.29, 0.015, 1.3],
+        [0.36, 0.10, 0.014, 0.6], [-0.22, 0.33, 0.017, 2.8], [0.04, 0.33, 0.015, 0.15],
+        [-0.33, 0.26, 0.013, 1.9], [0.35, -0.18, 0.014, 0.9], [-0.39, 0.02, 0.016, 2.2],
+        [0.38, 0.22, 0.015, 1.5], [-0.18, 0.32, 0.014, 0.55], [0.16, -0.34, 0.013, 2.6],
+        [-0.28, 0.10, 0.015, 1.2], [0.00, -0.34, 0.016, 0.7], [-0.38, -0.22, 0.014, 2.0],
+        [0.18, 0.32, 0.013, 1.8]
+    ];
+    smallDrifts.forEach(([x, y, height, yaw]) => {
+        if (!isSnowSpotFree(x, y)) {
+            return;
+        }
+        natureRoot.add(placeNatureItem(() => createSnowDrift(0), { x, y, z: 0 }, height, yaw));
+    });
+
+    const largeDrifts = [
+        [-0.38, 0.34, 0.032, 0.4], [-0.36, -0.34, 0.030, 1.6],
+        [0.36, -0.34, 0.034, 2.3], [0.38, 0.18, 0.028, 0.9]
+    ];
+    largeDrifts.forEach(([x, y, height, yaw]) => {
+        if (!isSnowSpotFree(x, y)) {
+            return;
+        }
+        natureRoot.add(placeNatureItem(() => createSnowDrift(2), { x, y, z: 0 }, height, yaw));
+    });
+
+    const snowRolls = [
+        [-0.39, 0.16, 0.015, 1.2], [-0.39, -0.20, 0.014, 1.05],
+        [-0.16, 0.35, 0.016, 0.12], [0.38, -0.24, 0.015, 1.4],
+        [0.08, -0.35, 0.014, 0.08]
+    ];
+    snowRolls.forEach(([x, y, height, yaw]) => {
+        if (!isSnowSpotFree(x, y)) {
+            return;
+        }
+        natureRoot.add(placeNatureItem(() => createSnowDrift(1), { x, y, z: 0 }, height, yaw));
     });
 
     return natureRoot;

@@ -1,3 +1,11 @@
+/*
+ * VankorAR
+ * Original author: Данил Каханов
+ * WebAR visualization project
+ * MindAR + Three.js
+ * 2026
+ */
+
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MindARThree } from "mindar-image-three";
@@ -7,12 +15,12 @@ import {
     createProceduralSite,
     createProceduralWorkers,
     updateProceduralScene
-} from "./procedural-scene.js?v=10";
+} from "./procedural-scene.js?v=12";
 import {
     bindSceneInteraction,
     unbindSceneInteraction,
     updateSceneInteraction
-} from "./interaction.js?v=10";
+} from "./interaction.js?v=12";
 
 const IMAGE_TARGET_SRC = "./assets/vankor-land.mind";
 const OIL_RIG_SRC = "./assets/models/oil-rig-optimized.glb";

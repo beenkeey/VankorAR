@@ -46,10 +46,31 @@ body {
 }
 
 #start-screen h1 {
-    margin-bottom: 10px;
+    margin: 6px 0 10px;
 }
 
 #start-screen p {
+    margin-bottom: 30px;
+}
+
+#brand-line {
+    margin: 0 0 2px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #e6b325;
+}
+
+#start-subtitle {
+    margin: 0 0 16px;
+    max-width: 320px;
+    font-size: 14px;
+    line-height: 1.35;
+    color: #c8ced4;
+}
+
+#start-hint {
     margin-bottom: 30px;
 }
 
@@ -156,6 +177,18 @@ body {
     touch-action: manipulation;
     -webkit-user-select: none;
     user-select: none;
+}
+
+#info-card-badge {
+    display: inline-block;
+    margin: 0 0 8px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: #e6b325;
+    color: #16181b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
 }
 
 #info-card-title {
