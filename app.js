@@ -7,7 +7,7 @@ import {
     createProceduralSite,
     createProceduralWorkers,
     updateProceduralScene
-} from "./procedural-scene.js";
+} from "./procedural-scene.js?v=6";
 
 const IMAGE_TARGET_SRC = "./assets/vankor-land.mind";
 const OIL_RIG_SRC = "./assets/models/oil-rig-optimized.glb";

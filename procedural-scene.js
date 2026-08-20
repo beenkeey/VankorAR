@@ -16,8 +16,23 @@ const PIPE_CENTER_Y = PIPE_SUPPORT_TOP + PIPE_RADIUS;
 const LADDER_RUNG_COUNT = 16;
 const CLIMB_SPEED = 0.055;
 
-const RIG_PLATFORM_POSITION = { x: 0, y: 1.12, z: 0.18 };
-const RIG_PLATFORM_SIZE = { x: 0.22, y: 0.024, z: 0.16 };
+const RIG_TOWER_HEIGHT = 1.50;
+const RIG_TOWER_BOTTOM = 0.18;
+const RIG_TOWER_TOP = 0.055;
+const RIG_PLATFORM_POSITION = { x: 0, y: 1.12, z: 0 };
+const RIG_PLATFORM_SIZE = { x: 0.40, y: 0.022, z: 0.40 };
+const RIG_PLATFORM_INNER = 0.22;
+const RIG_LADDER_X = 0;
+const RIG_LADDER_Y0 = 0.10;
+const RIG_LADDER_Y1 = RIG_PLATFORM_POSITION.y + RIG_PLATFORM_SIZE.y * 0.5;
+const RIG_HATCH_WIDTH = 0.12;
+
+function rigSpreadAt(y) {
+    return THREE.MathUtils.lerp(RIG_TOWER_BOTTOM, RIG_TOWER_TOP, y / RIG_TOWER_HEIGHT);
+}
+
+const RIG_LADDER_Z0 = rigSpreadAt(RIG_LADDER_Y0) + 0.028;
+const RIG_LADDER_Z1 = (RIG_PLATFORM_INNER + RIG_PLATFORM_SIZE.z) * 0.25;
 const BEAR_TURN_SPEED = 2.4;
 const BEAR_WALK_FREQUENCY = 7;
 const BEAR_REACH_EPSILON = 0.028;
@@ -41,7 +56,8 @@ export const SCENE_OBSTACLES = [
     { name: "pipesPumpRise", x: 0.270, y: -0.16, radiusX: 0.035, radiusY: 0.11 },
     { name: "pipesPumpEast", x: 0.38, y: 0.094, radiusX: 0.035, radiusY: 0.15 },
     { name: "pipesRigProcess", x: 0.356, y: 0.231, radiusX: 0.04, radiusY: 0.03 },
-    { name: "pipesTanksHeader", x: -0.220, y: -0.230, radiusX: 0.08, radiusY: 0.03 }
+    { name: "pipesTanksHeader", x: -0.220, y: -0.230, radiusX: 0.08, radiusY: 0.03 },
+    { name: "pumpPanel", x: 0.355, y: -0.155, radiusX: 0.028, radiusY: 0.028 }
 ];
 
 export const WORK_ZONES = [
@@ -59,25 +75,31 @@ function rigLocalToMap(lx, ly, lz) {
     );
 }
 
-export const RIG_CLIMB_PATH = [
-    rigLocalToMap(0.00, 0.02, 0.36),
-    rigLocalToMap(0.00, 0.10, 0.22),
-    rigLocalToMap(0.00, 0.28, 0.20),
-    rigLocalToMap(0.00, 0.50, 0.19),
-    rigLocalToMap(0.00, 0.72, 0.20),
-    rigLocalToMap(0.00, 0.94, 0.22),
-    rigLocalToMap(0.00, RIG_PLATFORM_POSITION.y - 0.04, RIG_PLATFORM_POSITION.z + RIG_PLATFORM_SIZE.z * 0.35),
-    rigLocalToMap(
-        0.00,
-        RIG_PLATFORM_POSITION.y + RIG_PLATFORM_SIZE.y * 0.5,
-        RIG_PLATFORM_POSITION.z + RIG_PLATFORM_SIZE.z * 0.28
-    ),
-    rigLocalToMap(
-        0.00,
-        RIG_PLATFORM_POSITION.y + RIG_PLATFORM_SIZE.y * 0.5,
-        RIG_PLATFORM_POSITION.z
-    )
-];
+function buildRigClimbPath() {
+    const points = [];
+    const count = 10;
+
+    for (let i = 0; i < count; i += 1) {
+        const t = i / (count - 1);
+        const y = THREE.MathUtils.lerp(RIG_LADDER_Y0, RIG_LADDER_Y1, t);
+        const z = THREE.MathUtils.lerp(RIG_LADDER_Z0, RIG_LADDER_Z1, t);
+        points.push(rigLocalToMap(RIG_LADDER_X, y, z));
+    }
+
+    return points;
+}
+
+export const RIG_CLIMB_PATH = buildRigClimbPath();
+const RIG_PLATFORM_ENTRY = rigLocalToMap(
+    RIG_HATCH_WIDTH * 0.5 + 0.018,
+    RIG_LADDER_Y1,
+    RIG_LADDER_Z1
+);
+const RIG_TERMINAL_LOCAL = { x: 0.145, y: RIG_PLATFORM_POSITION.y + 0.03, z: 0.148 };
+const RIG_TERMINAL_STAND = rigLocalToMap(0.145, RIG_LADDER_Y1, 0.178);
+const PUMPJACK_PANEL_POSITION = { x: 0.355, y: -0.155, z: 0 };
+const PUMPJACK_PANEL_STAND = new THREE.Vector3(0.348, -0.178, 0);
+const PUMPJACK_INSPECT = new THREE.Vector3(0.312, -0.168, 0);
 
 const PUMP_INLET_CONNECTION = { x: 0.270, y: -0.06 };
 const PUMP_OUTLET_CONNECTION = { x: 0.32, y: -0.043 };
@@ -278,7 +300,11 @@ const WORKER_SPAWNS = [
         scale: 1.03,
         workDuration: 4.8,
         idleDuration: 1.4,
-        waypoints: []
+        waypoints: [
+            new THREE.Vector3(0.22, 0.08, 0),
+            new THREE.Vector3(0.10, 0.10, 0),
+            new THREE.Vector3(0.30, 0.12, 0)
+        ]
     },
     {
         name: "workerPatrol",
@@ -344,19 +370,16 @@ const WORKER_SPAWNS = [
         role: "pumpWork",
         workZone: "yard",
         stationed: false,
-        climber: true,
-        position: { x: 0.08, y: 0.08, z: 0 },
-        yaw: -0.3,
+        climber: false,
+        pumpOperator: true,
+        position: { x: 0.34, y: -0.16, z: 0 },
+        yaw: 0,
         speed: 0.034,
         phase: 1.6,
         scale: 1.04,
         workDuration: 4.2,
         idleDuration: 1.0,
-        climbWait: 7.5,
-        waypoints: [
-            new THREE.Vector3(0.08, 0.08, 0),
-            new THREE.Vector3(0.18, 0.08, 0)
-        ]
+        waypoints: []
     },
     {
         name: "workerNorth",
@@ -385,7 +408,8 @@ const bearInstances = [];
 const workerInstances = [];
 const birdInstances = [];
 let pumpjackBeam = null;
-let activeClimber = null;
+let activeRigWorker = null;
+let rigWarningLight = null;
 
 function getKit() {
     if (kit) {
@@ -443,7 +467,13 @@ function getKit() {
             rock: lambert(0x7a776f),
             stump: lambert(0x6a4a32),
             bird: lambert(0x2c2c2c),
-            birdWing: lambert(0x3a3a3a)
+            birdWing: lambert(0x3a3a3a),
+            panelScreen: lambert(0x1b4d7a),
+            warningRed: new THREE.MeshLambertMaterial({
+                color: 0xff2a2a,
+                emissive: 0xff0000,
+                emissiveIntensity: 1.6
+            })
         }
     };
 
@@ -1085,12 +1115,14 @@ function createWorkerInstance(config) {
     root.userData.idleDuration = config.idleDuration || 1.2;
     root.userData.workTimer = config.stationed ? root.userData.workDuration : 0;
     root.userData.climber = Boolean(config.climber);
-    root.userData.climbState = config.climber ? "ground" : null;
+    root.userData.pumpOperator = Boolean(config.pumpOperator);
+    root.userData.climbState = config.climber ? "idle" : null;
+    root.userData.pumpState = config.pumpOperator ? "idle" : null;
     root.userData.climbIndex = 0;
     root.userData.climbT = 0;
     root.userData.climbWait = config.climber
         ? (config.climbWait !== undefined ? config.climbWait : 2 + config.phase)
-        : 0;
+        : (config.pumpOperator ? 1.2 + config.phase : 0);
 
     return root;
 }
@@ -1131,6 +1163,9 @@ export function updateWorkerAnimation(worker, delta, elapsedTime) {
         parts.body.rotation.x = Math.sin(t * 2) * 0.03;
         parts.body.position.y = parts.body.userData.restY + Math.abs(Math.sin(t * 2)) * 0.008;
         parts.head.rotation.y = Math.sin(t * 0.5) * 0.08;
+        parts.head.rotation.x = 0;
+        parts.leftArm.rotation.z = 0;
+        parts.rightArm.rotation.z = 0;
     } else if (mode === "climb" || mode === "descend") {
         const swing = Math.sin(t * 1.1) * 0.32;
         parts.leftLeg.rotation.x = swing;
@@ -1140,14 +1175,28 @@ export function updateWorkerAnimation(worker, delta, elapsedTime) {
         parts.body.rotation.x = 0.08;
         parts.body.position.y = parts.body.userData.restY;
         parts.head.rotation.y = 0;
-    } else if (mode === "workHigh") {
-        parts.leftLeg.rotation.x = 0.04;
-        parts.rightLeg.rotation.x = -0.03;
-        parts.body.rotation.x = 0.08 + Math.sin(t * 1.1) * 0.04;
-        parts.rightArm.rotation.x = -0.7 + Math.sin(t * 1.8) * 0.22;
-        parts.leftArm.rotation.x = -0.25 + Math.sin(t * 1.3) * 0.1;
-        parts.head.rotation.y = Math.sin(elapsedTime * 0.55 + worker.userData.phase) * 0.45;
-        parts.head.rotation.x = 0.05;
+        parts.head.rotation.x = 0;
+        parts.leftArm.rotation.z = 0;
+        parts.rightArm.rotation.z = 0;
+    } else if (mode === "workTerminal" || mode === "workControlPanel" || mode === "workHigh") {
+        parts.leftLeg.rotation.x = 0.05;
+        parts.rightLeg.rotation.x = -0.04;
+        parts.body.rotation.x = 0.16 + Math.sin(t * 1.2) * 0.05;
+        parts.body.rotation.z = Math.sin(t * 0.9) * 0.03;
+        parts.rightArm.rotation.x = -1.05 + Math.sin(t * 2.2) * 0.22;
+        parts.rightArm.rotation.z = 0.12;
+        parts.leftArm.rotation.x = -0.55 + Math.sin(t * 1.4) * 0.08;
+        parts.head.rotation.y = Math.sin(elapsedTime * 0.7 + worker.userData.phase) * 0.22;
+        parts.head.rotation.x = 0.08;
+        parts.body.position.y = parts.body.userData.restY;
+    } else if (mode === "inspectPumpjack") {
+        parts.leftLeg.rotation.x = 0.06;
+        parts.rightLeg.rotation.x = -0.05;
+        parts.body.rotation.x = 0.22 + Math.sin(t * 0.9) * 0.04;
+        parts.rightArm.rotation.x = -0.35;
+        parts.leftArm.rotation.x = -0.2;
+        parts.head.rotation.x = 0.18;
+        parts.head.rotation.y = Math.sin(elapsedTime * 0.45 + worker.userData.phase) * 0.18;
         parts.body.position.y = parts.body.userData.restY;
     } else if (mode === "work") {
         parts.leftLeg.rotation.x = 0.08;
@@ -1166,8 +1215,12 @@ export function updateWorkerAnimation(worker, delta, elapsedTime) {
         parts.leftArm.rotation.x = 0.08;
         parts.rightArm.rotation.x = -0.06;
         parts.body.rotation.x = idle * 0.02;
+        parts.body.rotation.z = 0;
         parts.body.position.y = parts.body.userData.restY + idle * 0.004;
         parts.head.rotation.y = Math.sin(elapsedTime * 0.7 + worker.userData.phase) * 0.12;
+        parts.head.rotation.x = 0;
+        parts.leftArm.rotation.z = 0;
+        parts.rightArm.rotation.z = 0;
     }
 
     void delta;
@@ -1215,41 +1268,58 @@ function moveAlongClimbPath(worker, delta, reverse) {
     return false;
 }
 
+function walkToward(worker, target, delta, speed, lockZ) {
+    const dx = target.x - worker.position.x;
+    const dy = target.y - worker.position.y;
+    const distance = Math.hypot(dx, dy);
+
+    if (distance <= 0.016) {
+        worker.position.x = target.x;
+        worker.position.y = target.y;
+        if (lockZ) {
+            worker.position.z = target.z;
+        }
+        return true;
+    }
+
+    worker.rotation.z = lerpAngle(
+        worker.rotation.z,
+        getFacingYaw(worker.position, target),
+        2.6 * delta
+    );
+    const step = Math.min(speed * delta, distance);
+    worker.position.x += (dx / distance) * step;
+    worker.position.y += (dy / distance) * step;
+    worker.position.z = lockZ ? target.z : 0;
+    return false;
+}
+
 function updateClimber(worker, delta) {
     const data = worker.userData;
+    const path = RIG_CLIMB_PATH;
+    const hatch = path[path.length - 1];
+    const panelMap = rigLocalToMap(RIG_TERMINAL_LOCAL.x, RIG_LADDER_Y1, RIG_TERMINAL_LOCAL.z);
 
-    if (data.climbState === "ground") {
+    if (data.climbState === "idle" || data.climbState === "ground") {
         data.climbWait -= delta;
-        if (data.climbWait <= 0 && !activeClimber) {
-            activeClimber = worker;
-            data.climbState = "toLadder";
+        if (data.climbWait <= 0 && !activeRigWorker) {
+            activeRigWorker = worker;
+            data.climbState = "approachRig";
             data.mode = "walk";
             return true;
         }
         return false;
     }
 
-    if (data.climbState === "toLadder") {
-        const target = RIG_CLIMB_PATH[0];
-        const dx = target.x - worker.position.x;
-        const dy = target.y - worker.position.y;
-        const distance = Math.hypot(dx, dy);
-
-        if (distance <= 0.018) {
+    if (data.climbState === "approachRig" || data.climbState === "toLadder") {
+        data.mode = "walk";
+        if (walkToward(worker, path[0], delta, data.speed, false)) {
             data.climbState = "climb";
             data.mode = "climb";
             data.climbIndex = 0;
             data.climbT = 0;
             worker.rotation.z = CLIMB_YAW;
-            return true;
         }
-
-        data.mode = "walk";
-        worker.rotation.z = lerpAngle(worker.rotation.z, getFacingYaw(worker.position, target), 2.4 * delta);
-        const step = Math.min(data.speed * delta, distance);
-        worker.position.x += (dx / distance) * step;
-        worker.position.y += (dy / distance) * step;
-        worker.position.z = 0;
         return true;
     }
 
@@ -1257,29 +1327,63 @@ function updateClimber(worker, delta) {
         data.mode = "climb";
         const done = moveAlongClimbPath(worker, delta, false);
         if (done) {
-            const top = RIG_CLIMB_PATH[RIG_CLIMB_PATH.length - 1];
-            worker.position.copy(top);
-            data.climbState = "workHigh";
-            data.mode = "workHigh";
-            data.climbWait = data.workDuration + 2.5;
+            worker.position.copy(hatch);
+            data.climbState = "enterPlatform";
+            data.mode = "walk";
         }
         return true;
     }
 
-    if (data.climbState === "workHigh") {
-        data.mode = "workHigh";
+    if (data.climbState === "enterPlatform") {
+        data.mode = "walk";
+        if (walkToward(worker, RIG_PLATFORM_ENTRY, delta, data.speed, true)) {
+            data.climbState = "walkToTerminal";
+        }
+        return true;
+    }
+
+    if (data.climbState === "walkToTerminal") {
+        data.mode = "walk";
+        if (walkToward(worker, RIG_TERMINAL_STAND, delta, data.speed, true)) {
+            data.climbState = "workTerminal";
+            data.mode = "workTerminal";
+            data.climbWait = 4 + Math.random() * 4;
+            worker.rotation.z = getFacingYaw(worker.position, panelMap);
+        }
+        return true;
+    }
+
+    if (data.climbState === "workTerminal") {
+        data.mode = "workTerminal";
         data.climbLook = (data.climbLook || 0) + delta;
-        const lookYaw = getFacingYaw(worker.position, RIG_POSITION)
-            + Math.sin(data.climbLook * 0.55) * 0.65;
-        worker.rotation.z = lerpAngle(worker.rotation.z, lookYaw, 1.6 * delta);
+        worker.rotation.z = lerpAngle(
+            worker.rotation.z,
+            getFacingYaw(worker.position, panelMap) + Math.sin(data.climbLook * 0.6) * 0.18,
+            1.8 * delta
+        );
         data.climbWait -= delta;
         if (data.climbWait <= 0) {
-            data.climbState = "descend";
-            data.mode = "descend";
-            data.climbIndex = 0;
-            data.climbT = 0;
+            data.climbState = "returnToLadder";
+            data.mode = "walk";
             data.climbLook = 0;
-            worker.rotation.z = DESCEND_YAW;
+        }
+        return true;
+    }
+
+    if (data.climbState === "returnToLadder") {
+        data.mode = "walk";
+        const via = data.returnViaEntry ? hatch : RIG_PLATFORM_ENTRY;
+        if (walkToward(worker, via, delta, data.speed, true)) {
+            if (!data.returnViaEntry) {
+                data.returnViaEntry = true;
+            } else {
+                data.returnViaEntry = false;
+                data.climbState = "descend";
+                data.mode = "descend";
+                data.climbIndex = 0;
+                data.climbT = 0;
+                worker.rotation.z = DESCEND_YAW;
+            }
         }
         return true;
     }
@@ -1288,14 +1392,91 @@ function updateClimber(worker, delta) {
         data.mode = "descend";
         const done = moveAlongClimbPath(worker, delta, true);
         if (done) {
-            worker.position.copy(RIG_CLIMB_PATH[0]);
+            worker.position.copy(path[0]);
             worker.position.z = 0;
-            data.climbState = "ground";
+            data.climbState = "idle";
             data.mode = "idle";
             data.climbWait = 8 + Math.random() * 4;
-            if (activeClimber === worker) {
-                activeClimber = null;
+            if (activeRigWorker === worker) {
+                activeRigWorker = null;
             }
+        }
+        return true;
+    }
+
+    return false;
+}
+
+function updatePumpOperator(worker, delta) {
+    const data = worker.userData;
+
+    if (data.pumpState === "idle") {
+        data.climbWait -= delta;
+        data.mode = "idle";
+        if (data.climbWait <= 0) {
+            data.pumpState = "approachPumpjack";
+            data.mode = "walk";
+        }
+        return true;
+    }
+
+    if (data.pumpState === "approachPumpjack") {
+        data.mode = "walk";
+        if (walkToward(worker, PUMPJACK_PANEL_STAND, delta, data.speed, false)) {
+            data.pumpState = "workControlPanel";
+            data.mode = "workControlPanel";
+            data.climbWait = 3.2 + Math.random() * 2.4;
+            worker.rotation.z = getFacingYaw(worker.position, PUMPJACK_PANEL_POSITION);
+        }
+        return true;
+    }
+
+    if (data.pumpState === "workControlPanel") {
+        data.mode = "workControlPanel";
+        worker.rotation.z = lerpAngle(
+            worker.rotation.z,
+            getFacingYaw(worker.position, PUMPJACK_PANEL_POSITION),
+            2.0 * delta
+        );
+        data.climbWait -= delta;
+        if (data.climbWait <= 0) {
+            data.pumpState = "inspectPumpjack";
+            data.mode = "walk";
+        }
+        return true;
+    }
+
+    if (data.pumpState === "inspectPumpjack") {
+        if (data.inspectLeft === undefined) {
+            data.inspectLeft = 2.2 + Math.random() * 1.4;
+        }
+
+        if (!walkToward(worker, PUMPJACK_INSPECT, delta, data.speed, false)) {
+            data.mode = "walk";
+            return true;
+        }
+
+        data.mode = "inspectPumpjack";
+        worker.rotation.z = lerpAngle(
+            worker.rotation.z,
+            getFacingYaw(worker.position, PUMPJACK_POSITION),
+            2.0 * delta
+        );
+        data.inspectLeft -= delta;
+        if (data.inspectLeft <= 0) {
+            data.pumpState = "returnControlPanel";
+            data.mode = "walk";
+            data.inspectLeft = undefined;
+        }
+        return true;
+    }
+
+    if (data.pumpState === "returnControlPanel") {
+        data.mode = "walk";
+        if (walkToward(worker, PUMPJACK_PANEL_STAND, delta, data.speed, false)) {
+            data.pumpState = "idle";
+            data.mode = "idle";
+            data.climbWait = 2.4 + Math.random() * 2.2;
         }
         return true;
     }
@@ -1307,6 +1488,10 @@ function updateWorkerMovement(worker, delta) {
     const data = worker.userData;
 
     if (data.climber && updateClimber(worker, delta)) {
+        return;
+    }
+
+    if (data.pumpOperator && updatePumpOperator(worker, delta)) {
         return;
     }
 
@@ -1391,6 +1576,128 @@ export function updateWorkers(delta, elapsedTime) {
     });
 }
 
+function createControlPanelMesh() {
+    const { geo, mat } = getKit();
+    const panel = new THREE.Group();
+    panel.name = "controlPanel";
+
+    addPart(panel, geo.box, mat.steelDark, 0, 0.016, 0, 0.05, 0.032, 0.038);
+    addPart(panel, geo.box, mat.steel, 0, 0.036, 0.004, 0.062, 0.008, 0.046);
+    addPart(panel, geo.box, mat.steelLight, 0, 0.062, -0.006, 0.072, 0.048, 0.012);
+    addPart(panel, geo.box, mat.panelScreen, 0.004, 0.066, 0.002, 0.038, 0.026, 0.006);
+    addPart(panel, geo.cylLow, mat.yellow, -0.02, 0.048, 0.016, 0.006, 0.007, 0.006);
+    addPart(panel, geo.cylLow, mat.orange, 0, 0.048, 0.016, 0.006, 0.007, 0.006);
+    addPart(panel, geo.cylLow, mat.yellow, 0.02, 0.048, 0.016, 0.006, 0.007, 0.006);
+    addPart(panel, geo.box, mat.orange, 0.026, 0.078, 0.002, 0.008, 0.008, 0.006);
+    addPart(panel, geo.box, mat.yellow, -0.026, 0.078, 0.002, 0.008, 0.008, 0.006);
+
+    return panel;
+}
+
+function createRigControlPanel() {
+    const panel = createControlPanelMesh();
+    panel.name = "rigControlPanel";
+    panel.position.set(RIG_TERMINAL_LOCAL.x, RIG_TERMINAL_LOCAL.y, RIG_TERMINAL_LOCAL.z);
+    return panel;
+}
+
+function createPumpjackControlPanel() {
+    const visual = createControlPanelMesh();
+    placeYUpByHeight(visual, 0.052);
+    const root = createPlacedGroup(visual, PUMPJACK_PANEL_POSITION, 0);
+    root.name = "pumpjackControlPanel";
+    return root;
+}
+
+function createRigWarningLight() {
+    const { geo, mat } = getKit();
+    const group = new THREE.Group();
+    group.name = "rigWarningLight";
+    const bulbMat = mat.warningRed.clone();
+    const bulb = addPart(group, geo.sphereTiny, bulbMat, 0, 0.008, 0, 0.011, 0.011, 0.011);
+    addPart(group, geo.cylLow, mat.steelDark, 0, 0, 0, 0.008, 0.012, 0.008);
+    const light = new THREE.PointLight(0xff1a1a, 0.4, 0.22, 2);
+    light.position.set(0, 0.01, 0);
+    group.add(light);
+    group.position.set(0, 1.675, 0);
+    rigWarningLight = { group, bulb, mat: bulbMat, light };
+    return group;
+}
+
+function addPlatformRail(visual, geo, mat, x1, z1, x2, z2, railY, midY) {
+    addStrut(visual, geo.cylLow, mat, x1, railY, z1, x2, railY, z2, 0.006);
+    addStrut(visual, geo.cylLow, mat, x1, midY, z1, x2, midY, z2, 0.005);
+}
+
+function addRingWorkPlatform(visual, geo, mat) {
+    const y = RIG_PLATFORM_POSITION.y;
+    const thick = RIG_PLATFORM_SIZE.y;
+    const outer = RIG_PLATFORM_SIZE.x;
+    const inner = RIG_PLATFORM_INNER;
+    const walk = (outer - inner) * 0.5;
+    const mid = (inner + outer) * 0.25;
+    const outerHalf = outer * 0.5;
+    const innerHalf = inner * 0.5;
+    const hatchHalf = RIG_HATCH_WIDTH * 0.5;
+    const southWidth = (outer - RIG_HATCH_WIDTH) * 0.5;
+    const southX = hatchHalf + southWidth * 0.5;
+    const deckY = y;
+    const grateY = y + thick * 0.42;
+
+    addPart(visual, geo.box, mat.steel, 0, deckY, -mid, outer, thick, walk);
+    addPart(visual, geo.box, mat.steel, mid, deckY, 0, walk, thick, outer);
+    addPart(visual, geo.box, mat.steel, -mid, deckY, 0, walk, thick, outer);
+    addPart(visual, geo.box, mat.steel, -southX, deckY, mid, southWidth, thick, walk);
+    addPart(visual, geo.box, mat.steel, southX, deckY, mid, southWidth, thick, walk);
+
+    addPart(visual, geo.box, mat.steelLight, 0, grateY, -mid, outer * 0.96, 0.005, walk * 0.86);
+    addPart(visual, geo.box, mat.steelLight, mid, grateY, 0, walk * 0.86, 0.005, outer * 0.96);
+    addPart(visual, geo.box, mat.steelLight, -mid, grateY, 0, walk * 0.86, 0.005, outer * 0.96);
+    addPart(visual, geo.box, mat.steelLight, -southX, grateY, mid, southWidth * 0.9, 0.005, walk * 0.86);
+    addPart(visual, geo.box, mat.steelLight, southX, grateY, mid, southWidth * 0.9, 0.005, walk * 0.86);
+
+    addPart(visual, geo.box, mat.yellow, 0, grateY + 0.003, -mid, outer * 0.04, 0.003, walk * 0.7);
+    addPart(visual, geo.box, mat.yellow, mid, grateY + 0.003, 0, walk * 0.7, 0.003, outer * 0.04);
+
+    const coamingH = 0.018;
+    addPart(visual, geo.box, mat.yellow, 0, y + thick * 0.5 + coamingH * 0.5, innerHalf, RIG_HATCH_WIDTH, coamingH, 0.008);
+    addPart(visual, geo.box, mat.yellow, -hatchHalf, y + thick * 0.5 + coamingH * 0.5, mid, 0.008, coamingH, walk);
+    addPart(visual, geo.box, mat.yellow, hatchHalf, y + thick * 0.5 + coamingH * 0.5, mid, 0.008, coamingH, walk);
+
+    const railH = 0.11;
+    const railY = y + thick * 0.5 + railH;
+    const midRailY = y + thick * 0.5 + railH * 0.52;
+    const postY = y + thick * 0.5 + railH * 0.5;
+    const posts = [
+        [-outerHalf, -outerHalf], [0, -outerHalf], [outerHalf, -outerHalf],
+        [outerHalf, 0], [outerHalf, outerHalf],
+        [-outerHalf, 0], [-outerHalf, outerHalf],
+        [-hatchHalf, outerHalf], [hatchHalf, outerHalf],
+        [-hatchHalf, innerHalf], [hatchHalf, innerHalf],
+        [-innerHalf, -innerHalf], [innerHalf, -innerHalf],
+        [-innerHalf, innerHalf], [innerHalf, innerHalf],
+        [0, -innerHalf], [-innerHalf, 0], [innerHalf, 0]
+    ];
+    posts.forEach(([px, pz]) => {
+        addPart(visual, geo.cylLow, mat.yellow, px, postY, pz, 0.007, railH, 0.007);
+    });
+
+    addPlatformRail(visual, geo, mat.yellow, -outerHalf, -outerHalf, outerHalf, -outerHalf, railY, midRailY);
+    addPlatformRail(visual, geo, mat.yellow, outerHalf, -outerHalf, outerHalf, outerHalf, railY, midRailY);
+    addPlatformRail(visual, geo, mat.yellow, -outerHalf, -outerHalf, -outerHalf, outerHalf, railY, midRailY);
+    addPlatformRail(visual, geo, mat.yellow, -outerHalf, outerHalf, -hatchHalf, outerHalf, railY, midRailY);
+    addPlatformRail(visual, geo, mat.yellow, hatchHalf, outerHalf, outerHalf, outerHalf, railY, midRailY);
+
+    addPlatformRail(visual, geo, mat.yellow, -innerHalf, -innerHalf, innerHalf, -innerHalf, railY, midRailY);
+    addPlatformRail(visual, geo, mat.yellow, innerHalf, -innerHalf, innerHalf, innerHalf, railY, midRailY);
+    addPlatformRail(visual, geo, mat.yellow, -innerHalf, -innerHalf, -innerHalf, innerHalf, railY, midRailY);
+    addPlatformRail(visual, geo, mat.yellow, -innerHalf, innerHalf, -hatchHalf, innerHalf, railY, midRailY);
+    addPlatformRail(visual, geo, mat.yellow, hatchHalf, innerHalf, innerHalf, innerHalf, railY, midRailY);
+
+    addPlatformRail(visual, geo, mat.yellow, -hatchHalf, innerHalf, -hatchHalf, outerHalf, railY, midRailY);
+    addPlatformRail(visual, geo, mat.yellow, hatchHalf, innerHalf, hatchHalf, outerHalf, railY, midRailY);
+}
+
 export function createProceduralOilRig() {
     if (rigRoot) {
         return Promise.resolve(rigRoot);
@@ -1441,39 +1748,9 @@ export function createProceduralOilRig() {
         }
     }
 
-    const platformY = RIG_PLATFORM_POSITION.y;
-    const plat = RIG_PLATFORM_POSITION;
-    const psz = RIG_PLATFORM_SIZE;
-    addPart(visual, geo.box, mat.steel, plat.x, plat.y, plat.z, psz.x, psz.y, psz.z);
-    addPart(visual, geo.box, mat.steelLight, plat.x, plat.y + psz.y * 0.55, plat.z, psz.x * 0.92, 0.006, psz.z * 0.88);
-    addPart(visual, geo.box, mat.yellow, plat.x, plat.y + psz.y * 0.7, plat.z, psz.x * 0.06, 0.004, psz.z * 0.8);
-
-    const frameZ = spreadAt(platformY);
-    const innerZ = plat.z - psz.z * 0.5;
-    addStrut(visual, geo.cylLow, mat.steel, -0.06, plat.y, frameZ, -0.06, plat.y, innerZ, 0.012);
-    addStrut(visual, geo.cylLow, mat.steel, 0.06, plat.y, frameZ, 0.06, plat.y, innerZ, 0.012);
-    addStrut(visual, geo.cylLow, mat.steelDark, -0.06, plat.y - 0.05, frameZ, -0.06, plat.y, plat.z, 0.01);
-    addStrut(visual, geo.cylLow, mat.steelDark, 0.06, plat.y - 0.05, frameZ, 0.06, plat.y, plat.z, 0.01);
-
-    const railH = 0.12;
-    const railY = plat.y + psz.y * 0.5 + railH;
-    const hx = psz.x * 0.46;
-    const hzN = plat.z - psz.z * 0.46;
-    const hzS = plat.z + psz.z * 0.46;
-    const posts = [
-        [-hx, hzN], [hx, hzN], [-hx, hzS], [hx, hzS],
-        [0, hzN], [-hx, plat.z], [hx, plat.z],
-        [-hx * 0.45, hzS], [hx * 0.45, hzS]
-    ];
-    posts.forEach(([px, pz]) => {
-        addPart(visual, geo.cylLow, mat.yellow, px, plat.y + psz.y * 0.5 + railH * 0.5, pz, 0.007, railH, 0.007);
-    });
-    addPart(visual, geo.box, mat.yellow, 0, railY, hzN, psz.x * 0.92, 0.01, 0.01);
-    addPart(visual, geo.box, mat.yellow, -hx, railY, plat.z, 0.01, 0.01, psz.z * 0.9);
-    addPart(visual, geo.box, mat.yellow, hx, railY, plat.z, 0.01, 0.01, psz.z * 0.9);
-    addPart(visual, geo.box, mat.yellow, -psz.x * 0.28, railY, hzS, psz.x * 0.32, 0.01, 0.01);
-    addPart(visual, geo.box, mat.yellow, psz.x * 0.28, railY, hzS, psz.x * 0.32, 0.01, 0.01);
-    addPart(visual, geo.box, mat.yellow, 0, plat.y + psz.y * 0.5 + railH * 0.5, hzN, psz.x * 0.92, 0.007, 0.007);
+    addRingWorkPlatform(visual, geo, mat);
+    visual.add(createRigControlPanel());
+    visual.add(createRigWarningLight());
 
     addPart(visual, geo.box, mat.steelDark, 0.16, 0.12, 0.02, 0.12, 0.10, 0.10);
     addPart(visual, geo.cylLow, mat.rust, 0.22, 0.086, 0.02, 0.012, 0.04, 0.012, 0, 0, Math.PI / 2);
@@ -1504,25 +1781,44 @@ export function createProceduralOilRig() {
 
     addPart(visual, geo.cylLow, mat.steelDark, 0, 0.56, 0, 0.018, 0.88, 0.018);
 
-    const ladderY0 = 0.10;
-    const ladderY1 = plat.y + psz.y * 0.5;
-    const ladderZ0 = spreadAt(ladderY0) + 0.028;
-    const ladderZ1 = plat.z + psz.z * 0.22;
-    const ladderZAt = (y) => THREE.MathUtils.lerp(
-        ladderZ0,
-        ladderZ1,
-        (y - ladderY0) / (ladderY1 - ladderY0)
+    const ladderX = RIG_LADDER_X;
+    const ladderY0 = RIG_LADDER_Y0;
+    const ladderY1 = RIG_LADDER_Y1;
+    const ladderZ0 = RIG_LADDER_Z0;
+    const ladderZ1 = RIG_LADDER_Z1;
+    const railOffset = 0.048;
+    addStrut(visual, geo.cylLow, mat.yellow, ladderX - railOffset, ladderY0, ladderZ0, ladderX - railOffset, ladderY1, ladderZ1, 0.01);
+    addStrut(visual, geo.cylLow, mat.yellow, ladderX + railOffset, ladderY0, ladderZ0, ladderX + railOffset, ladderY1, ladderZ1, 0.01);
+    addStrut(
+        visual,
+        geo.cylLow,
+        mat.steelLight,
+        ladderX - 0.068,
+        ladderY0 + 0.04,
+        ladderZ0 + 0.02,
+        ladderX - 0.055,
+        ladderY1,
+        ladderZ1 + 0.018,
+        0.007
     );
-    addStrut(visual, geo.cylLow, mat.yellow, -0.05, ladderY0, ladderZAt(ladderY0), -0.04, ladderY1, ladderZAt(ladderY1), 0.01);
-    addStrut(visual, geo.cylLow, mat.yellow, 0.05, ladderY0, ladderZAt(ladderY0), 0.04, ladderY1, ladderZAt(ladderY1), 0.01);
-    addStrut(visual, geo.cylLow, mat.steelLight, -0.07, ladderY0 + 0.04, ladderZAt(ladderY0) + 0.02, -0.055, ladderY1, ladderZAt(ladderY1) + 0.018, 0.007);
-    addStrut(visual, geo.cylLow, mat.steelLight, 0.07, ladderY0 + 0.04, ladderZAt(ladderY0) + 0.02, 0.055, ladderY1, ladderZAt(ladderY1) + 0.018, 0.007);
+    addStrut(
+        visual,
+        geo.cylLow,
+        mat.steelLight,
+        ladderX + 0.068,
+        ladderY0 + 0.04,
+        ladderZ0 + 0.02,
+        ladderX + 0.055,
+        ladderY1,
+        ladderZ1 + 0.018,
+        0.007
+    );
 
     for (let i = 0; i < LADDER_RUNG_COUNT; i += 1) {
         const t = i / (LADDER_RUNG_COUNT - 1);
         const y = THREE.MathUtils.lerp(ladderY0, ladderY1, t);
-        const z = ladderZAt(y);
-        addPart(visual, geo.box, mat.yellow, 0, y, z, 0.10, 0.014, 0.016);
+        const z = THREE.MathUtils.lerp(ladderZ0, ladderZ1, t);
+        addPart(visual, geo.box, mat.yellow, ladderX, y, z, 0.10, 0.014, 0.016);
     }
 
     placeYUpByFootprint(visual, PROCEDURAL_RIG_FOOTPRINT);
@@ -2039,6 +2335,7 @@ export function createProceduralSite() {
     siteRoot.name = "siteRoot";
     siteRoot.add(
         createPumpjack(),
+        createPumpjackControlPanel(),
         createTanks(),
         createPipes(),
         createContainers(),
@@ -2053,6 +2350,12 @@ export function createProceduralSite() {
 export function updateSiteAnimation(elapsedTime) {
     if (pumpjackBeam) {
         pumpjackBeam.rotation.z = Math.sin(elapsedTime * 1.15) * 0.38;
+    }
+
+    if (rigWarningLight) {
+        const on = (elapsedTime % 1) < 0.5;
+        rigWarningLight.mat.emissiveIntensity = on ? 1.85 : 0.06;
+        rigWarningLight.light.intensity = on ? 0.42 : 0;
     }
 }
 
