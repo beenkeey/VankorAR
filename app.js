@@ -23,7 +23,10 @@ const USE_PROCEDURAL_BEAR = true;
 const USE_PROCEDURAL_WORKER = true;
 const USE_PROCEDURAL_RIG = true;
 
-const AR_STABILIZATION_DEBUG = false;
+const AR_STABILIZATION_DEBUG = true;
+const AR_STABILIZATION_TEST_MODE = false;
+const DEBUG_DISABLE_MINDAR_FILTER = false;
+const DEBUG_DISABLE_ROOT_SMOOTHING = false;
 const AR_SMOOTHING_SPEED_SLOW = 16;
 const AR_SMOOTHING_SPEED_FAST = 30;
 const AR_POSITION_DEADBAND = 0.0005;
@@ -60,6 +63,9 @@ const _arRawPos = new THREE.Vector3();
 const _arRawQuat = new THREE.Quaternion();
 const _arRawScale = new THREE.Vector3();
 const _arDisplayScale = new THREE.Vector3(1, 1, 1);
+const _arLastRawPos = new THREE.Vector3();
+const _arLastRawQuat = new THREE.Quaternion();
+let arStabHasLastRaw = false;
 
 function showError(message) {
     errorMessage.textContent = message;
@@ -143,8 +149,8 @@ function createScene() {
         uiLoading: "yes",
         uiScanning: "yes",
         uiError: "yes",
-        filterMinCF: 0.00007,
-        filterBeta: 2000
+        filterMinCF: DEBUG_DISABLE_MINDAR_FILTER ? 1 : 0.00007,
+        filterBeta: DEBUG_DISABLE_MINDAR_FILTER ? 0 : 2000
     });
 
     arAnchor = mindarThree.addAnchor(0);
@@ -244,10 +250,31 @@ function createPlacedModelGroup(visual, position, yaw = 0) {
     return group;
 }
 
+function ensureStabTestBadge() {
+    let badge = document.querySelector("#stab-test-badge");
+
+    if (!AR_STABILIZATION_TEST_MODE) {
+        if (badge) {
+            badge.hidden = true;
+        }
+        return;
+    }
+
+    if (!badge) {
+        badge = document.createElement("div");
+        badge.id = "stab-test-badge";
+        badge.textContent = "STABILIZATION TEST";
+        document.body.appendChild(badge);
+    }
+
+    badge.hidden = false;
+}
+
 function resetArStabilization() {
     arStabHasPose = false;
     arStabLastSeenMs = 0;
     arStabDebugFrame = 0;
+    arStabHasLastRaw = false;
     _arDisplayScale.set(1, 1, 1);
 
     if (arDisplayRoot) {
@@ -258,6 +285,40 @@ function resetArStabilization() {
     }
 }
 
+function logArStabilization(posError, rotError, alpha, rawDelta, visible) {
+    console.log("[AR stab]", {
+        rawPosition: {
+            x: Number(_arRawPos.x.toFixed(5)),
+            y: Number(_arRawPos.y.toFixed(5)),
+            z: Number(_arRawPos.z.toFixed(5))
+        },
+        smoothedPosition: {
+            x: Number(arDisplayRoot.position.x.toFixed(5)),
+            y: Number(arDisplayRoot.position.y.toFixed(5)),
+            z: Number(arDisplayRoot.position.z.toFixed(5))
+        },
+        positionError: Number(posError.toFixed(6)),
+        rawDelta: Number(rawDelta.toFixed(6)),
+        rawQuaternion: {
+            x: Number(_arRawQuat.x.toFixed(5)),
+            y: Number(_arRawQuat.y.toFixed(5)),
+            z: Number(_arRawQuat.z.toFixed(5)),
+            w: Number(_arRawQuat.w.toFixed(5))
+        },
+        smoothedQuaternion: {
+            x: Number(arDisplayRoot.quaternion.x.toFixed(5)),
+            y: Number(arDisplayRoot.quaternion.y.toFixed(5)),
+            z: Number(arDisplayRoot.quaternion.z.toFixed(5)),
+            w: Number(arDisplayRoot.quaternion.w.toFixed(5))
+        },
+        rotationError: Number(rotError.toFixed(6)),
+        alpha: Number(alpha.toFixed(4)),
+        arAnchorVisible: visible,
+        mindarFilterDisabled: DEBUG_DISABLE_MINDAR_FILTER,
+        rootSmoothingDisabled: DEBUG_DISABLE_ROOT_SMOOTHING
+    });
+}
+
 function updateArStabilization(delta) {
     if (!arAnchor || !arDisplayRoot) {
         return;
@@ -265,18 +326,31 @@ function updateArStabilization(delta) {
 
     const now = performance.now();
     const targetVisible = Boolean(arAnchor.visible);
+    const debugEnabled = AR_STABILIZATION_DEBUG || AR_STABILIZATION_TEST_MODE;
 
     if (targetVisible) {
         arStabLastSeenMs = now;
         arAnchor.group.matrix.decompose(_arRawPos, _arRawQuat, _arRawScale);
 
-        if (!arStabHasPose) {
+        const rawDelta = arStabHasLastRaw ? _arRawPos.distanceTo(_arLastRawPos) : 0;
+
+        if (!arStabHasPose || DEBUG_DISABLE_ROOT_SMOOTHING) {
             arDisplayRoot.position.copy(_arRawPos);
             arDisplayRoot.quaternion.copy(_arRawQuat);
             arDisplayRoot.scale.copy(_arRawScale);
             _arDisplayScale.copy(_arRawScale);
             arStabHasPose = true;
             arDisplayRoot.visible = true;
+            _arLastRawPos.copy(_arRawPos);
+            _arLastRawQuat.copy(_arRawQuat);
+            arStabHasLastRaw = true;
+
+            if (debugEnabled) {
+                arStabDebugFrame += 1;
+                if (arStabDebugFrame % 15 === 0) {
+                    logArStabilization(0, 0, 1, rawDelta, targetVisible);
+                }
+            }
             return;
         }
 
@@ -300,29 +374,16 @@ function updateArStabilization(delta) {
 
         arDisplayRoot.visible = true;
 
-        if (AR_STABILIZATION_DEBUG) {
+        if (debugEnabled) {
             arStabDebugFrame += 1;
             if (arStabDebugFrame % 15 === 0) {
-                console.log(
-                    "[AR stab]",
-                    "raw",
-                    _arRawPos.x.toFixed(4),
-                    _arRawPos.y.toFixed(4),
-                    _arRawPos.z.toFixed(4),
-                    "smoothed",
-                    arDisplayRoot.position.x.toFixed(4),
-                    arDisplayRoot.position.y.toFixed(4),
-                    arDisplayRoot.position.z.toFixed(4),
-                    "posErr",
-                    posError.toFixed(5),
-                    "rotErr",
-                    rotError.toFixed(5),
-                    "alpha",
-                    alpha.toFixed(3)
-                );
+                logArStabilization(posError, rotError, alpha, rawDelta, targetVisible);
             }
         }
 
+        _arLastRawPos.copy(_arRawPos);
+        _arLastRawQuat.copy(_arRawQuat);
+        arStabHasLastRaw = true;
         return;
     }
 
@@ -536,6 +597,7 @@ async function startAR() {
 
         isRunning = true;
         showArControls();
+        ensureStabTestBadge();
     } catch (error) {
         const cameraError = cameraGuard.getError() || error;
         console.error("Ошибка запуска AR", cameraError);
@@ -621,6 +683,10 @@ function stopAR() {
 
     stopMindAR();
     resetArStabilization();
+    const badge = document.querySelector("#stab-test-badge");
+    if (badge) {
+        badge.hidden = true;
+    }
     isRunning = false;
     showStartScreen();
 }

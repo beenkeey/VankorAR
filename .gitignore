@@ -5,3 +5,6 @@ node_modules/
 .env
 assets/models/bear.fbx
 assets/models/oil-rig.glb
+assets/models/bear.glb
+assets/models/neftanik.glb
+assets/models/oil-rig-optimized.glb

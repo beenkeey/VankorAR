@@ -101,3 +101,16 @@ body {
 .hidden {
     display: none !important;
 }
+
+#stab-test-badge {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 40;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(180, 40, 40, 0.85);
+    color: #fff;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+}
