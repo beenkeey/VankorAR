@@ -7,7 +7,12 @@ import {
     createProceduralSite,
     createProceduralWorkers,
     updateProceduralScene
-} from "./procedural-scene.js?v=6";
+} from "./procedural-scene.js?v=7";
+import {
+    bindSceneInteraction,
+    unbindSceneInteraction,
+    updateSceneInteraction
+} from "./interaction.js?v=7";
 
 const IMAGE_TARGET_SRC = "./assets/vankor-land.mind";
 const OIL_RIG_SRC = "./assets/models/oil-rig-optimized.glb";
@@ -591,6 +596,7 @@ async function startAR() {
                 workers: USE_PROCEDURAL_WORKER,
                 rig: USE_PROCEDURAL_RIG
             });
+            updateSceneInteraction(delta);
 
             renderer.render(scene, camera);
         });
@@ -598,10 +604,16 @@ async function startAR() {
         isRunning = true;
         showArControls();
         ensureStabTestBadge();
+        bindSceneInteraction({
+            camera,
+            renderer,
+            getTrackingVisible: () => Boolean(arDisplayRoot && arDisplayRoot.visible)
+        });
     } catch (error) {
         const cameraError = cameraGuard.getError() || error;
         console.error("Ошибка запуска AR", cameraError);
         stopMindAR();
+        unbindSceneInteraction();
         isRunning = false;
         showStartScreen();
         showError(getCameraErrorMessage(cameraError));
@@ -683,6 +695,7 @@ function stopAR() {
 
     stopMindAR();
     resetArStabilization();
+    unbindSceneInteraction();
     const badge = document.querySelector("#stab-test-badge");
     if (badge) {
         badge.hidden = true;

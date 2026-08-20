@@ -114,3 +114,79 @@ body {
     font-size: 12px;
     letter-spacing: 0.04em;
 }
+
+#info-card {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    pointer-events: none;
+}
+
+#info-card-dim {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 34%;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.46), rgba(0, 0, 0, 0));
+}
+
+#info-card-panel {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 14px 44px 14px 16px;
+    border-radius: 14px;
+    background: rgba(18, 22, 26, 0.92);
+    color: #f3f3f3;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    pointer-events: auto;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#info-card-title {
+    margin: 0 0 6px;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+#info-card-description {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.35;
+    color: #d7dce0;
+}
+
+#info-card-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#info-card-action {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 10px;
+    background: #e6b325;
+    color: #1c1c1c;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}

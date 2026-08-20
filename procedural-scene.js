@@ -408,8 +408,53 @@ const bearInstances = [];
 const workerInstances = [];
 const birdInstances = [];
 let pumpjackBeam = null;
+let pumpjackPanelScreenMat = null;
+let pumpjackDemoLeft = 0;
 let activeRigWorker = null;
 let rigWarningLight = null;
+const interactiveObjects = [];
+
+function markInteractive(object, type, title, description) {
+    object.userData.interactive = true;
+    object.userData.interactiveType = type;
+    object.userData.title = title;
+    object.userData.description = description;
+    if (!interactiveObjects.includes(object)) {
+        interactiveObjects.push(object);
+    }
+}
+
+export function getInteractiveObjects() {
+    return interactiveObjects;
+}
+
+export function requestRigWorkDemo() {
+    const worker = workerInstances.find((item) => item.userData.climber);
+    if (!worker) {
+        return false;
+    }
+
+    const state = worker.userData.climbState;
+    const inCycle = Boolean(activeRigWorker)
+        || (state && state !== "idle" && state !== "ground");
+
+    if (inCycle) {
+        return false;
+    }
+
+    worker.userData.climbWait = 0;
+    return true;
+}
+
+export function requestPumpjackWorkDemo() {
+    const worker = workerInstances.find((item) => item.userData.pumpOperator);
+    if (worker && (worker.userData.pumpState === "idle" || !worker.userData.pumpState)) {
+        worker.userData.climbWait = 0;
+    }
+
+    pumpjackDemoLeft = 6;
+    return true;
+}
 
 function getKit() {
     if (kit) {
@@ -855,6 +900,13 @@ export function createBearInstance(config) {
         config.zone,
         config.zoneBias
     );
+    root.userData.interactHold = 0;
+    markInteractive(
+        root,
+        "bear",
+        "Бурый медведь",
+        "Один из обитателей северной тайги."
+    );
 
     return root;
 }
@@ -905,11 +957,22 @@ function updateBearInstanceAnimation(bear, delta, elapsedTime) {
     parts.head.rotation.x = Math.sin(t * 2) * 0.08 * amount + Math.sin(elapsedTime * 1.1 + bear.userData.phase) * 0.03 * idle;
     parts.head.rotation.y = Math.sin(t * 0.5) * 0.10 * amount;
     parts.tail.rotation.z = Math.sin(t * 2.2) * 0.35 * amount + Math.sin(elapsedTime * 2 + bear.userData.phase) * 0.12 * idle;
+
+    if (bear.userData.interactHold > 0) {
+        parts.head.rotation.y = THREE.MathUtils.lerp(parts.head.rotation.y, 0.55, 0.18);
+        parts.head.rotation.x = THREE.MathUtils.lerp(parts.head.rotation.x, 0.14, 0.14);
+    }
 }
 
 function updateBearInstanceMovement(bear, delta) {
     const data = bear.userData;
     const position = bear.position;
+
+    if (data.interactHold > 0) {
+        data.interactHold -= delta;
+        data.walkAmount = 0;
+        return;
+    }
 
     if (data.pauseTimer > 0) {
         data.pauseTimer -= delta;
@@ -1123,6 +1186,13 @@ function createWorkerInstance(config) {
     root.userData.climbWait = config.climber
         ? (config.climbWait !== undefined ? config.climbWait : 2 + config.phase)
         : (config.pumpOperator ? 1.2 + config.phase : 0);
+    root.userData.interactHold = 0;
+    markInteractive(
+        root,
+        "worker",
+        "Нефтяник",
+        "Работа на нефтяном промысле."
+    );
 
     return root;
 }
@@ -1147,6 +1217,13 @@ export function createProceduralWorkers() {
 export function updateWorkerAnimation(worker, delta, elapsedTime) {
     const parts = worker.userData.parts;
     if (!parts) {
+        return;
+    }
+
+    if (worker.userData.interactHold > 0) {
+        parts.head.rotation.y = THREE.MathUtils.lerp(parts.head.rotation.y, 0.48, 0.2);
+        parts.head.rotation.x = THREE.MathUtils.lerp(parts.head.rotation.x, 0.08, 0.15);
+        parts.body.rotation.z = THREE.MathUtils.lerp(parts.body.rotation.z, 0.06, 0.12);
         return;
     }
 
@@ -1487,6 +1564,11 @@ function updatePumpOperator(worker, delta) {
 function updateWorkerMovement(worker, delta) {
     const data = worker.userData;
 
+    if (data.interactHold > 0) {
+        data.interactHold -= delta;
+        return;
+    }
+
     if (data.climber && updateClimber(worker, delta)) {
         return;
     }
@@ -1603,6 +1685,14 @@ function createRigControlPanel() {
 
 function createPumpjackControlPanel() {
     const visual = createControlPanelMesh();
+    visual.traverse((child) => {
+        if (child.isMesh && child.material === getKit().mat.panelScreen) {
+            child.material = child.material.clone();
+            child.material.emissive = new THREE.Color(0x000000);
+            child.material.emissiveIntensity = 0;
+            pumpjackPanelScreenMat = child.material;
+        }
+    });
     placeYUpByHeight(visual, 0.052);
     const root = createPlacedGroup(visual, PUMPJACK_PANEL_POSITION, 0);
     root.name = "pumpjackControlPanel";
@@ -1824,6 +1914,12 @@ export function createProceduralOilRig() {
     placeYUpByFootprint(visual, PROCEDURAL_RIG_FOOTPRINT);
     rigRoot = createPlacedGroup(visual, RIG_POSITION);
     rigRoot.name = "proceduralOilRig";
+    markInteractive(
+        rigRoot,
+        "rig",
+        "Буровая установка",
+        "Основной объект нефтяного промысла."
+    );
 
     return Promise.resolve(rigRoot);
 }
@@ -1861,6 +1957,12 @@ function createPumpjack() {
     root.name = "pumpjack";
     root.userData.beam = beam;
     pumpjackBeam = beam;
+    markInteractive(
+        root,
+        "pumpjack",
+        "Насос-качалка",
+        "Используется для механизированной добычи нефти."
+    );
     return root;
 }
 
@@ -1889,6 +1991,12 @@ function createTanks() {
     placeYUpByFootprint(visual, 0.18);
     const root = createPlacedGroup(visual, TANKS_POSITION, 0);
     root.name = "tanks";
+    markInteractive(
+        root,
+        "tanks",
+        "Резервуары",
+        "Хранение и технологическая подготовка жидкости."
+    );
     return root;
 }
 
@@ -2333,9 +2441,19 @@ export function createProceduralSite() {
 
     siteRoot = new THREE.Group();
     siteRoot.name = "siteRoot";
+    const pumpjack = createPumpjack();
+    const pumpPanel = createPumpjackControlPanel();
+    markInteractive(
+        pumpPanel,
+        "pumpjack",
+        "Насос-качалка",
+        "Используется для механизированной добычи нефти."
+    );
+    pumpPanel.userData.highlightTarget = pumpjack;
+
     siteRoot.add(
-        createPumpjack(),
-        createPumpjackControlPanel(),
+        pumpjack,
+        pumpPanel,
         createTanks(),
         createPipes(),
         createContainers(),
@@ -2347,9 +2465,21 @@ export function createProceduralSite() {
     return Promise.resolve(siteRoot);
 }
 
-export function updateSiteAnimation(elapsedTime) {
+export function updateSiteAnimation(elapsedTime, delta = 0.016) {
+    if (pumpjackDemoLeft > 0) {
+        pumpjackDemoLeft = Math.max(0, pumpjackDemoLeft - delta);
+    }
+
+    const demo = pumpjackDemoLeft > 0;
     if (pumpjackBeam) {
-        pumpjackBeam.rotation.z = Math.sin(elapsedTime * 1.15) * 0.38;
+        const speed = demo ? 2.15 : 1.15;
+        const amplitude = demo ? 0.48 : 0.38;
+        pumpjackBeam.rotation.z = Math.sin(elapsedTime * speed) * amplitude;
+    }
+
+    if (pumpjackPanelScreenMat) {
+        pumpjackPanelScreenMat.emissive.setHex(demo ? 0x3aa7ff : 0x000000);
+        pumpjackPanelScreenMat.emissiveIntensity = demo ? 1.15 : 0;
     }
 
     if (rigWarningLight) {
@@ -2370,7 +2500,7 @@ export function updateProceduralScene(delta, elapsedTime, flags) {
     }
 
     if (flags.rig) {
-        updateSiteAnimation(elapsedTime);
+        updateSiteAnimation(elapsedTime, delta);
     }
 
     updateBirds(delta, elapsedTime);
