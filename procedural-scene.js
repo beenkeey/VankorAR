@@ -38,9 +38,45 @@ export const WORK_ZONES = [
 ];
 
 const BEAR_SPAWNS = [
-    { name: "bearForest", position: { x: -0.32, y: 0.26, z: 0 }, speed: 0.052, phase: 0.35, seed: 11, pause: 0.4 },
-    { name: "bearYard", position: { x: -0.12, y: 0.02, z: 0 }, speed: 0.068, phase: 1.7, seed: 27, pause: 1.1 },
-    { name: "bearSouth", position: { x: 0.04, y: -0.06, z: 0 }, speed: 0.046, phase: 2.9, seed: 43, pause: 0.2 }
+    {
+        name: "bearForest",
+        position: { x: -0.32, y: 0.26, z: 0 },
+        speed: 0.042,
+        turnSpeed: 1.55,
+        phase: 0.35,
+        seed: 11,
+        pause: 1.1,
+        pauseMin: 0.9,
+        pauseMax: 2.6,
+        zone: { x: -0.30, y: 0.26, radiusX: 0.11, radiusY: 0.09 },
+        zoneBias: 0.8
+    },
+    {
+        name: "bearRoad",
+        position: { x: -0.28, y: -0.02, z: 0 },
+        speed: 0.062,
+        turnSpeed: 1.85,
+        phase: 1.7,
+        seed: 27,
+        pause: 0.5,
+        pauseMin: 0.35,
+        pauseMax: 1.4,
+        zone: { x: -0.28, y: -0.02, radiusX: 0.10, radiusY: 0.12 },
+        zoneBias: 0.74
+    },
+    {
+        name: "bearCenter",
+        position: { x: -0.04, y: 0.02, z: 0 },
+        speed: 0.054,
+        turnSpeed: 1.7,
+        phase: 2.9,
+        seed: 43,
+        pause: 0.7,
+        pauseMin: 0.5,
+        pauseMax: 1.9,
+        zone: { x: -0.04, y: 0.04, radiusX: 0.14, radiusY: 0.12 },
+        zoneBias: 0.72
+    }
 ];
 
 const WORKER_SPAWNS = [
@@ -53,6 +89,9 @@ const WORKER_SPAWNS = [
         yaw: -0.6,
         speed: 0,
         phase: 1.1,
+        scale: 1.03,
+        workDuration: 4.8,
+        idleDuration: 1.4,
         waypoints: []
     },
     {
@@ -63,6 +102,7 @@ const WORKER_SPAWNS = [
         position: { x: -0.08, y: 0.06, z: 0 },
         speed: 0.04,
         phase: 0.2,
+        scale: 0.98,
         waypoints: [
             new THREE.Vector3(-0.08, 0.06, 0),
             new THREE.Vector3(-0.22, -0.12, 0),
@@ -79,6 +119,9 @@ const WORKER_SPAWNS = [
         yaw: Math.PI,
         speed: 0,
         phase: 2.2,
+        scale: 1.02,
+        workDuration: 3.2,
+        idleDuration: 1.6,
         waypoints: []
     },
     {
@@ -90,6 +133,9 @@ const WORKER_SPAWNS = [
         yaw: Math.PI * 0.5,
         speed: 0,
         phase: 0.8,
+        scale: 0.97,
+        workDuration: 3.8,
+        idleDuration: 0.9,
         waypoints: []
     },
     {
@@ -100,10 +146,40 @@ const WORKER_SPAWNS = [
         position: { x: -0.32, y: 0.18, z: 0 },
         speed: 0.036,
         phase: 2.8,
+        scale: 1.05,
         waypoints: [
             new THREE.Vector3(-0.32, 0.18, 0),
             new THREE.Vector3(-0.18, 0.28, 0),
             new THREE.Vector3(-0.28, 0.02, 0)
+        ]
+    },
+    {
+        name: "workerPumpjack",
+        role: "pumpWork",
+        workZone: "yard",
+        stationed: true,
+        position: { x: 0.18, y: -0.02, z: 0 },
+        yaw: -0.3,
+        speed: 0,
+        phase: 1.6,
+        scale: 1.04,
+        workDuration: 4.2,
+        idleDuration: 1.0,
+        waypoints: []
+    },
+    {
+        name: "workerNorth",
+        role: "northPatrol",
+        workZone: "yard",
+        stationed: false,
+        position: { x: 0.02, y: 0.28, z: 0 },
+        speed: 0.033,
+        phase: 0.55,
+        scale: 0.96,
+        waypoints: [
+            new THREE.Vector3(0.02, 0.28, 0),
+            new THREE.Vector3(-0.12, 0.22, 0),
+            new THREE.Vector3(0.08, 0.12, 0)
         ]
     }
 ];
@@ -113,8 +189,10 @@ let bearsRoot = null;
 let workersRoot = null;
 let rigRoot = null;
 let siteRoot = null;
+let natureRoot = null;
 const bearInstances = [];
 const workerInstances = [];
+const birdInstances = [];
 let pumpjackBeam = null;
 
 function getKit() {
@@ -165,7 +243,15 @@ function getKit() {
             boot: lambert(0x1c1c1c),
             glove: lambert(0x2a2a2a),
             containerBlue: lambert(0x2e6aa6),
-            containerRed: lambert(0xa33b2b)
+            containerRed: lambert(0xa33b2b),
+            bark: lambert(0x5a3b24),
+            pine: lambert(0x2f5c32),
+            pineDark: lambert(0x234728),
+            bush: lambert(0x3d6b34),
+            rock: lambert(0x7a776f),
+            stump: lambert(0x6a4a32),
+            bird: lambert(0x2c2c2c),
+            birdWing: lambert(0x3a3a3a)
         }
     };
 
@@ -368,10 +454,28 @@ function isPathAllowed(ax, ay, bx, by, padding = CHARACTER_RADIUS) {
     return !doesPathCrossObstacle({ x: ax, y: ay }, { x: bx, y: by }, padding);
 }
 
-function pickRandomWanderPoint(rng, fromX, fromY) {
-    for (let i = 0; i < 28; i += 1) {
-        const x = THREE.MathUtils.lerp(BEAR_WANDER_BOUNDS.minX, BEAR_WANDER_BOUNDS.maxX, rng());
-        const y = THREE.MathUtils.lerp(BEAR_WANDER_BOUNDS.minY, BEAR_WANDER_BOUNDS.maxY, rng());
+function pickPointInZone(rng, zone) {
+    const angle = rng() * Math.PI * 2;
+    const radius = Math.sqrt(rng());
+    return {
+        x: zone.x + Math.cos(angle) * zone.radiusX * radius,
+        y: zone.y + Math.sin(angle) * zone.radiusY * radius
+    };
+}
+
+function pickRandomWanderPoint(rng, fromX, fromY, zone, zoneBias = 0) {
+    for (let i = 0; i < 32; i += 1) {
+        let x;
+        let y;
+
+        if (zone && rng() < zoneBias) {
+            const local = pickPointInZone(rng, zone);
+            x = local.x;
+            y = local.y;
+        } else {
+            x = THREE.MathUtils.lerp(BEAR_WANDER_BOUNDS.minX, BEAR_WANDER_BOUNDS.maxX, rng());
+            y = THREE.MathUtils.lerp(BEAR_WANDER_BOUNDS.minY, BEAR_WANDER_BOUNDS.maxY, rng());
+        }
 
         if (isPathAllowed(fromX, fromY, x, y) && !isPointInsideSceneObstacle({ x, y })) {
             return new THREE.Vector3(x, y, 0);
@@ -513,9 +617,19 @@ export function createBearInstance(config) {
     root.userData.phase = config.phase;
     root.userData.rng = rng;
     root.userData.pauseTimer = config.pause || 0;
+    root.userData.pauseMin = config.pauseMin || 0.4;
+    root.userData.pauseMax = config.pauseMax || 1.8;
+    root.userData.zone = config.zone || null;
+    root.userData.zoneBias = config.zoneBias || 0;
     root.userData.walkAmount = 0;
     root.userData.walkDisplay = 0;
-    root.userData.target = pickRandomWanderPoint(rng, config.position.x, config.position.y);
+    root.userData.target = pickRandomWanderPoint(
+        rng,
+        config.position.x,
+        config.position.y,
+        config.zone,
+        config.zoneBias
+    );
 
     return root;
 }
@@ -577,7 +691,13 @@ function updateBearInstanceMovement(bear, delta) {
         data.walkAmount = 0;
 
         if (data.pauseTimer <= 0) {
-            data.target = pickRandomWanderPoint(data.rng, position.x, position.y);
+            data.target = pickRandomWanderPoint(
+                data.rng,
+                position.x,
+                position.y,
+                data.zone,
+                data.zoneBias
+            );
         }
 
         return;
@@ -589,13 +709,19 @@ function updateBearInstanceMovement(bear, delta) {
     const distance = Math.hypot(dx, dy);
 
     if (distance <= BEAR_REACH_EPSILON) {
-        data.pauseTimer = 0.4 + data.rng() * 1.8;
+        data.pauseTimer = data.pauseMin + data.rng() * (data.pauseMax - data.pauseMin);
         data.walkAmount = 0;
         return;
     }
 
     if (doesPathCrossObstacle(position, target) || !isInsideBounds(target.x, target.y)) {
-        data.target = pickRandomWanderPoint(data.rng, position.x, position.y);
+        data.target = pickRandomWanderPoint(
+            data.rng,
+            position.x,
+            position.y,
+            data.zone,
+            data.zoneBias
+        );
         data.walkAmount = 0;
         return;
     }
@@ -604,7 +730,13 @@ function updateBearInstanceMovement(bear, delta) {
     const nextY = position.y + (dy / distance) * Math.min(data.speed * delta, distance);
 
     if (!isPathAllowed(position.x, position.y, nextX, nextY)) {
-        data.target = pickRandomWanderPoint(data.rng, position.x, position.y);
+        data.target = pickRandomWanderPoint(
+            data.rng,
+            position.x,
+            position.y,
+            data.zone,
+            data.zoneBias
+        );
         data.walkAmount = 0;
         return;
     }
@@ -736,7 +868,7 @@ export function createProceduralOilWorker() {
 
 function createWorkerInstance(config) {
     const visual = createProceduralOilWorker();
-    placeYUpByHeight(visual, WORKER_HEIGHT);
+    placeYUpByHeight(visual, WORKER_HEIGHT * (config.scale || 1));
 
     const yaw = config.yaw !== undefined
         ? config.yaw
@@ -754,7 +886,9 @@ function createWorkerInstance(config) {
     root.userData.speed = config.speed;
     root.userData.phase = config.phase;
     root.userData.pauseTimer = config.stationed ? 0 : 0.2;
-    root.userData.workTimer = config.stationed ? 3.5 + config.phase : 0;
+    root.userData.workDuration = config.workDuration || 3.6;
+    root.userData.idleDuration = config.idleDuration || 1.2;
+    root.userData.workTimer = config.stationed ? root.userData.workDuration : 0;
 
     return root;
 }
@@ -844,7 +978,9 @@ function updateWorkerMovement(worker, delta) {
         data.workTimer -= delta;
         if (data.workTimer <= 0) {
             data.mode = data.mode === "work" ? "idle" : "work";
-            data.workTimer = data.mode === "work" ? 3.5 + Math.random() * 2 : 1.2 + Math.random();
+            data.workTimer = data.mode === "work"
+                ? data.workDuration + Math.random() * 0.6
+                : data.idleDuration + Math.random() * 0.4;
         }
         return;
     }
@@ -1059,28 +1195,51 @@ function mapToLocal(mapX, mapY, height) {
     };
 }
 
-function addPipeSegment(visual, geo, mat, x1, y1, x2, y2, height, radius) {
-    const start = mapToLocal(x1, y1, height);
-    const end = mapToLocal(x2, y2, height);
-    addStrut(visual, geo.cylLow, mat, start.x, start.y, start.z, end.x, end.y, end.z, radius);
+function addPipeSegment(visual, geo, mat, x1, y1, x2, y2, centerY, radius) {
+    const start = mapToLocal(x1, y1, centerY);
+    const end = mapToLocal(x2, y2, centerY);
+    addStrut(visual, geo, mat, start.x, start.y, start.z, end.x, end.y, end.z, radius);
 }
 
-function addPipeElbow(visual, geo, mat, mapX, mapY, height, radius) {
-    const point = mapToLocal(mapX, mapY, height);
-    addPart(visual, geo.sphereLow, mat, point.x, point.y, point.z, radius * 1.35, radius * 1.35, radius * 1.35);
+function addPipeElbow(visual, geo, mat, mapX, mapY, centerY, radius) {
+    const point = mapToLocal(mapX, mapY, centerY);
+    addPart(visual, geo, mat, point.x, point.y, point.z, radius * 1.25, radius * 1.25, radius * 1.25);
 }
 
-function addPipeSupports(visual, geo, mat, x1, y1, x2, y2, height, spacing) {
+function addPipeSupport(visual, geo, mat, mapX, mapY, supportTopY, pipeRadius) {
+    const post = mapToLocal(mapX, mapY, supportTopY * 0.5);
+    addPart(visual, geo.cylLow, mat, post.x, post.y, post.z, 0.009, supportTopY, 0.009);
+    addPart(visual, geo.box, mat, post.x, 0.006, post.z, 0.03, 0.012, 0.03);
+
+    const saddle = mapToLocal(mapX, mapY, supportTopY);
+    addPart(
+        visual,
+        geo.box,
+        mat,
+        saddle.x,
+        saddle.y,
+        saddle.z,
+        pipeRadius * 2.4,
+        0.008,
+        pipeRadius * 2.2
+    );
+}
+
+function addPipeSupports(visual, geo, mat, x1, y1, x2, y2, supportTopY, pipeRadius, spacing) {
     const length = Math.hypot(x2 - x1, y2 - y1);
-    const count = Math.max(1, Math.round(length / spacing));
+    const count = Math.max(2, Math.round(length / spacing));
 
-    for (let i = 1; i < count; i += 1) {
+    for (let i = 0; i <= count; i += 1) {
         const t = i / count;
-        const mapX = x1 + (x2 - x1) * t;
-        const mapY = y1 + (y2 - y1) * t;
-        const top = mapToLocal(mapX, mapY, height * 0.5);
-        addPart(visual, geo.cylLow, mat, top.x, top.y, top.z, 0.009, height, 0.009);
-        addPart(visual, geo.box, mat, top.x, 0.008, top.z, 0.028, 0.016, 0.028);
+        addPipeSupport(
+            visual,
+            geo,
+            mat,
+            x1 + (x2 - x1) * t,
+            y1 + (y2 - y1) * t,
+            supportTopY,
+            pipeRadius
+        );
     }
 }
 
@@ -1089,36 +1248,38 @@ function createPipes() {
     const visual = new THREE.Group();
     visual.name = "pipes";
 
-    const height = 0.05;
-    const radius = 0.014;
+    const pipeRadius = 0.013;
+    const supportTopY = 0.034;
+    const pipeCenterY = supportTopY + pipeRadius;
     const route = [
         { x: -0.10, y: -0.26 },
         { x: 0.20, y: -0.26 },
         { x: 0.20, y: 0.10 }
     ];
 
-    const riserStart = mapToLocal(route[0].x, route[0].y, height * 0.5);
-    addPart(visual, geo.cylLow, mat.rust, riserStart.x, riserStart.y, riserStart.z, radius, height, radius);
-    addPart(visual, geo.cylLow, mat.steelDark, riserStart.x, 0.01, riserStart.z, radius * 1.4, 0.02, radius * 1.4);
+    const riserStart = mapToLocal(route[0].x, route[0].y, pipeCenterY * 0.5);
+    addPart(visual, geo.cylLow, mat.rust, riserStart.x, riserStart.y, riserStart.z, pipeRadius, pipeCenterY, pipeRadius);
+    addPipeSupport(visual, geo, mat.steelDark, route[0].x, route[0].y, supportTopY, pipeRadius);
 
     for (let i = 0; i < route.length - 1; i += 1) {
         const from = route[i];
         const to = route[i + 1];
-        addPipeSegment(visual, geo.cylLow, mat.rust, from.x, from.y, to.x, to.y, height, radius);
-        addPipeSupports(visual, geo, mat.steelDark, from.x, from.y, to.x, to.y, height, 0.08);
-        addPipeElbow(visual, geo.sphereLow, mat.steelLight, from.x, from.y, height, radius);
+        addPipeSegment(visual, geo.cylLow, mat.rust, from.x, from.y, to.x, to.y, pipeCenterY, pipeRadius);
+        addPipeSupports(visual, geo, mat.steelDark, from.x, from.y, to.x, to.y, supportTopY, pipeRadius, 0.06);
+        addPipeElbow(visual, geo.sphereLow, mat.steelLight, from.x, from.y, pipeCenterY, pipeRadius);
     }
 
     const last = route[route.length - 1];
-    addPipeElbow(visual, geo.sphereLow, mat.steelLight, last.x, last.y, height, radius);
+    addPipeElbow(visual, geo.sphereLow, mat.steelLight, last.x, last.y, pipeCenterY, pipeRadius);
+    addPipeSupport(visual, geo, mat.steelDark, last.x, last.y, supportTopY, pipeRadius);
 
-    const riserEnd = mapToLocal(last.x, last.y, height + 0.03);
-    addPart(visual, geo.cylLow, mat.rust, riserEnd.x, height + 0.015, riserEnd.z, radius, 0.03, radius);
-    addPart(visual, geo.box, mat.yellow, riserEnd.x, height + 0.03, riserEnd.z, 0.03, 0.018, 0.03);
+    const riserEnd = mapToLocal(last.x, last.y, pipeCenterY + 0.018);
+    addPart(visual, geo.cylLow, mat.rust, riserEnd.x, pipeCenterY + 0.01, riserEnd.z, pipeRadius, 0.028, pipeRadius);
+    addPart(visual, geo.box, mat.yellow, riserEnd.x, pipeCenterY + 0.026, riserEnd.z, 0.028, 0.014, 0.028);
 
-    const valve = mapToLocal(0.06, -0.26, height);
-    addPart(visual, geo.box, mat.yellow, valve.x, valve.y + 0.012, valve.z, 0.022, 0.02, 0.03);
-    addPart(visual, geo.cylLow, mat.steelDark, valve.x, valve.y + 0.024, valve.z, 0.008, 0.016, 0.008);
+    const valve = mapToLocal(0.06, -0.26, pipeCenterY);
+    addPart(visual, geo.box, mat.yellow, valve.x, valve.y + 0.012, valve.z, 0.02, 0.016, 0.028);
+    addPart(visual, geo.cylLow, mat.steelDark, valve.x, valve.y + 0.022, valve.z, 0.007, 0.014, 0.007);
 
     visual.rotation.x = Math.PI / 2;
     return visual;
@@ -1159,6 +1320,196 @@ function createFences() {
     return root;
 }
 
+export function createPineTree() {
+    const { geo, mat } = getKit();
+    const tree = new THREE.Group();
+    tree.name = "pineTree";
+    addPart(tree, geo.cylLow, mat.bark, 0, 0.035, 0, 0.016, 0.07, 0.016);
+    addPart(tree, geo.cone, mat.pineDark, 0, 0.10, 0, 0.055, 0.09, 0.055);
+    addPart(tree, geo.cone, mat.pine, 0, 0.16, 0, 0.04, 0.08, 0.04);
+    addPart(tree, geo.cone, mat.pineDark, 0, 0.21, 0, 0.026, 0.07, 0.026);
+    return tree;
+}
+
+export function createSpruceTree() {
+    const { geo, mat } = getKit();
+    const tree = new THREE.Group();
+    tree.name = "spruceTree";
+    addPart(tree, geo.cylLow, mat.bark, 0, 0.03, 0, 0.014, 0.06, 0.014);
+    addPart(tree, geo.cone, mat.pine, 0, 0.09, 0, 0.048, 0.08, 0.048);
+    addPart(tree, geo.cone, mat.pineDark, 0, 0.15, 0, 0.034, 0.09, 0.034);
+    addPart(tree, geo.cone, mat.pine, 0, 0.21, 0, 0.022, 0.08, 0.022);
+    return tree;
+}
+
+function createBush() {
+    const { geo, mat } = getKit();
+    const bush = new THREE.Group();
+    addPart(bush, geo.sphereLow, mat.bush, 0, 0.025, 0, 0.04, 0.028, 0.036);
+    addPart(bush, geo.sphereTiny, mat.pine, 0.018, 0.03, 0.01, 0.022, 0.02, 0.02);
+    return bush;
+}
+
+function createRock() {
+    const { geo, mat } = getKit();
+    const rock = new THREE.Group();
+    addPart(rock, geo.sphereLow, mat.rock, 0, 0.012, 0, 0.028, 0.016, 0.022);
+    return rock;
+}
+
+function createStump() {
+    const { geo, mat } = getKit();
+    const stump = new THREE.Group();
+    addPart(stump, geo.cylLow, mat.stump, 0, 0.012, 0, 0.018, 0.024, 0.018);
+    addPart(stump, geo.cylLow, mat.bark, 0, 0.024, 0, 0.02, 0.006, 0.02);
+    return stump;
+}
+
+function placeNatureItem(factory, position, height, yaw = 0) {
+    const visual = factory();
+    placeYUpByHeight(visual, height);
+    return createPlacedGroup(visual, position, yaw);
+}
+
+function isNatureSpotFree(x, y) {
+    return !isPointInsideSceneObstacle({ x, y }, 0.04);
+}
+
+function createProceduralNature() {
+    if (natureRoot) {
+        return natureRoot;
+    }
+
+    natureRoot = new THREE.Group();
+    natureRoot.name = "natureRoot";
+
+    const pineSpots = [
+        [-0.38, 0.32, 0.12], [-0.34, 0.34, 0.11], [-0.38, 0.26, 0.13], [-0.30, 0.34, 0.10],
+        [-0.39, 0.14, 0.12], [-0.38, 0.04, 0.11], [-0.39, -0.18, 0.12],
+        [-0.38, -0.32, 0.10], [-0.08, -0.34, 0.11], [0.14, -0.34, 0.12],
+        [0.36, -0.32, 0.11], [0.38, 0.06, 0.12]
+    ];
+    const spruceSpots = [
+        [-0.24, 0.34, 0.13], [-0.16, 0.34, 0.11], [-0.04, 0.35, 0.12], [0.06, 0.34, 0.10],
+        [-0.37, -0.08, 0.12], [-0.32, -0.34, 0.11], [0.04, -0.35, 0.10],
+        [0.38, -0.24, 0.12], [0.38, -0.16, 0.11], [0.38, 0.16, 0.13],
+        [-0.39, -0.26, 0.11], [0.38, -0.08, 0.10]
+    ];
+
+    pineSpots.forEach(([x, y, height], index) => {
+        if (!isNatureSpotFree(x, y)) {
+            return;
+        }
+        natureRoot.add(placeNatureItem(createPineTree, { x, y, z: 0 }, height, index * 0.3));
+    });
+
+    spruceSpots.forEach(([x, y, height], index) => {
+        if (!isNatureSpotFree(x, y)) {
+            return;
+        }
+        natureRoot.add(placeNatureItem(createSpruceTree, { x, y, z: 0 }, height, index * 0.21));
+    });
+
+    const bushSpots = [
+        [-0.34, 0.28], [-0.36, 0.18], [-0.35, 0.08], [-0.34, -0.30],
+        [-0.14, 0.32], [0.00, 0.33], [0.12, -0.33], [0.34, -0.28],
+        [0.36, -0.12], [-0.26, 0.30]
+    ];
+    bushSpots.forEach(([x, y], index) => {
+        if (!isNatureSpotFree(x, y)) {
+            return;
+        }
+        natureRoot.add(placeNatureItem(createBush, { x, y, z: 0 }, 0.035, index));
+    });
+
+    const rockSpots = [
+        [-0.36, 0.22], [-0.30, 0.32], [0.10, -0.33], [0.34, -0.20], [-0.20, 0.33], [0.36, 0.02]
+    ];
+    rockSpots.forEach(([x, y]) => {
+        if (!isNatureSpotFree(x, y)) {
+            return;
+        }
+        natureRoot.add(placeNatureItem(createRock, { x, y, z: 0 }, 0.018, x * 4));
+    });
+
+    const stumpSpots = [
+        [-0.33, 0.20], [-0.22, 0.32], [0.08, -0.33], [0.34, -0.14]
+    ];
+    stumpSpots.forEach(([x, y]) => {
+        if (!isNatureSpotFree(x, y)) {
+            return;
+        }
+        natureRoot.add(placeNatureItem(createStump, { x, y, z: 0 }, 0.022));
+    });
+
+    return natureRoot;
+}
+
+function createBird() {
+    const { geo, mat } = getKit();
+    const bird = new THREE.Group();
+    addPart(bird, geo.sphereTiny, mat.bird, 0, 0, 0, 0.016, 0.007, 0.006);
+    addPart(bird, geo.sphereTiny, mat.bird, 0.012, 0, 0.002, 0.006, 0.005, 0.005);
+
+    const leftWing = new THREE.Group();
+    leftWing.position.set(0, 0.005, 0);
+    addPart(leftWing, geo.box, mat.birdWing, 0, 0.01, 0, 0.01, 0.018, 0.003);
+    const rightWing = new THREE.Group();
+    rightWing.position.set(0, -0.005, 0);
+    addPart(rightWing, geo.box, mat.birdWing, 0, -0.01, 0, 0.01, 0.018, 0.003);
+
+    bird.add(leftWing, rightWing);
+    bird.userData.wings = { left: leftWing, right: rightWing };
+    return bird;
+}
+
+function createProceduralBirds() {
+    if (birdInstances.length > 0) {
+        return birdInstances[0].parent;
+    }
+
+    const root = new THREE.Group();
+    root.name = "birdsRoot";
+
+    const flights = [
+        { cx: -0.08, cy: 0.10, rx: 0.18, ry: 0.10, height: 0.16, speed: 0.55, phase: 0.2 },
+        { cx: 0.04, cy: -0.04, rx: 0.16, ry: 0.12, height: 0.14, speed: 0.72, phase: 1.4 },
+        { cx: -0.18, cy: 0.20, rx: 0.12, ry: 0.08, height: 0.18, speed: 0.48, phase: 2.1 },
+        { cx: 0.12, cy: 0.06, rx: 0.14, ry: 0.09, height: 0.15, speed: -0.63, phase: 0.8 },
+        { cx: -0.04, cy: -0.16, rx: 0.15, ry: 0.07, height: 0.17, speed: 0.40, phase: 2.7 },
+        { cx: 0.08, cy: 0.18, rx: 0.10, ry: 0.11, height: 0.13, speed: -0.52, phase: 1.1 }
+    ];
+
+    flights.forEach((flight, index) => {
+        const bird = createBird();
+        bird.name = `bird${index + 1}`;
+        bird.userData.flight = flight;
+        root.add(bird);
+        birdInstances.push(bird);
+    });
+
+    return root;
+}
+
+function updateBirds(elapsedTime) {
+    birdInstances.forEach((bird) => {
+        const flight = bird.userData.flight;
+        const t = elapsedTime * flight.speed + flight.phase;
+        const x = flight.cx + Math.cos(t) * flight.rx;
+        const y = flight.cy + Math.sin(t) * flight.ry;
+        const z = flight.height + Math.sin(t * 2.2) * 0.012;
+
+        bird.position.set(x, y, z);
+        const vx = -Math.sin(t) * flight.rx * flight.speed;
+        const vy = Math.cos(t) * flight.ry * flight.speed;
+        bird.rotation.z = Math.atan2(vx, -vy);
+
+        const flap = Math.sin(elapsedTime * 16 + flight.phase) * 0.6;
+        bird.userData.wings.left.rotation.x = flap;
+        bird.userData.wings.right.rotation.x = -flap;
+    });
+}
+
 export function createProceduralSite() {
     if (siteRoot) {
         return Promise.resolve(siteRoot);
@@ -1171,7 +1522,9 @@ export function createProceduralSite() {
         createTanks(),
         createPipes(),
         createContainers(),
-        createFences()
+        createFences(),
+        createProceduralNature(),
+        createProceduralBirds()
     );
 
     return Promise.resolve(siteRoot);
@@ -1196,4 +1549,6 @@ export function updateProceduralScene(delta, elapsedTime, flags) {
     if (flags.rig) {
         updateSiteAnimation(elapsedTime);
     }
+
+    updateBirds(elapsedTime);
 }

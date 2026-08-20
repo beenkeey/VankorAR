@@ -124,7 +124,9 @@ function createScene() {
         imageTargetSrc: IMAGE_TARGET_SRC,
         uiLoading: "yes",
         uiScanning: "yes",
-        uiError: "yes"
+        uiError: "yes",
+        filterMinCF: 0.0001,
+        filterBeta: 1500
     });
 
     arAnchor = mindarThree.addAnchor(0);
