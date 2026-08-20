@@ -2,10 +2,15 @@ import * as THREE from "three";
 
 const BEAR_HEIGHT = 0.065;
 const WORKER_HEIGHT = 0.072;
-const PROCEDURAL_RIG_FOOTPRINT = 0.30;
+const PROCEDURAL_RIG_FOOTPRINT = 0.23;
+const RIG_POSITION = { x: 0.22, y: 0.24, z: 0 };
+const PUMPJACK_POSITION = { x: 0.32, y: -0.06, z: 0 };
+const TANKS_POSITION = { x: -0.22, y: -0.26, z: 0 };
+const CONTAINERS_POSITION = { x: -0.36, y: -0.08, z: 0 };
 const BEAR_TURN_SPEED = 2.4;
 const BEAR_WALK_FREQUENCY = 7;
 const BEAR_REACH_EPSILON = 0.028;
+const CHARACTER_RADIUS = 0.02;
 const _up = new THREE.Vector3(0, 1, 0);
 const _dir = new THREE.Vector3();
 
@@ -16,52 +21,89 @@ export const BEAR_WANDER_BOUNDS = {
     maxY: 0.36
 };
 
-export const BEAR_AVOID_ZONES = [
-    { name: "rig", x: 0.0, y: 0.02, radius: 0.16 },
-    { name: "pumpjack", x: 0.24, y: -0.10, radius: 0.09 },
-    { name: "tanks", x: 0.28, y: 0.24, radius: 0.11 },
-    { name: "containers", x: 0.22, y: -0.30, radius: 0.09 }
+export const SCENE_OBSTACLES = [
+    { name: "rig", x: 0.22, y: 0.24, radiusX: 0.135, radiusY: 0.135 },
+    { name: "pumpjack", x: 0.32, y: -0.06, radiusX: 0.09, radiusY: 0.08 },
+    { name: "tanks", x: -0.22, y: -0.26, radiusX: 0.13, radiusY: 0.10 },
+    { name: "containers", x: -0.36, y: -0.08, radiusX: 0.09, radiusY: 0.08 },
+    { name: "pipesEastWest", x: 0.05, y: -0.26, radiusX: 0.17, radiusY: 0.045 },
+    { name: "pipesNorthSouth", x: 0.20, y: -0.08, radiusX: 0.045, radiusY: 0.16 }
+];
+
+export const WORK_ZONES = [
+    { name: "rig", x: 0.07, y: 0.16, radiusX: 0.06, radiusY: 0.06 },
+    { name: "tanks", x: -0.22, y: -0.12, radiusX: 0.07, radiusY: 0.05 },
+    { name: "pipes", x: 0.06, y: -0.16, radiusX: 0.07, radiusY: 0.05 },
+    { name: "yard", x: -0.08, y: 0.06, radiusX: 0.12, radiusY: 0.10 }
 ];
 
 const BEAR_SPAWNS = [
     { name: "bearForest", position: { x: -0.32, y: 0.26, z: 0 }, speed: 0.052, phase: 0.35, seed: 11, pause: 0.4 },
-    { name: "bearRoad", position: { x: -0.30, y: -0.12, z: 0 }, speed: 0.068, phase: 1.7, seed: 27, pause: 1.1 },
-    { name: "bearSouth", position: { x: 0.04, y: -0.32, z: 0 }, speed: 0.046, phase: 2.9, seed: 43, pause: 0.2 }
+    { name: "bearYard", position: { x: -0.12, y: 0.02, z: 0 }, speed: 0.068, phase: 1.7, seed: 27, pause: 1.1 },
+    { name: "bearSouth", position: { x: 0.04, y: -0.06, z: 0 }, speed: 0.046, phase: 2.9, seed: 43, pause: 0.2 }
 ];
 
 const WORKER_SPAWNS = [
     {
-        name: "workerPatrol",
-        role: "patrol",
-        position: { x: -0.18, y: -0.18, z: 0 },
-        speed: 0.04,
-        phase: 0.2,
-        waypoints: [
-            new THREE.Vector3(-0.18, -0.18, 0),
-            new THREE.Vector3(-0.18, 0.16, 0),
-            new THREE.Vector3(0.08, -0.22, 0)
-        ]
-    },
-    {
         name: "workerRig",
         role: "rigWork",
-        position: { x: 0.14, y: 0.11, z: 0 },
-        yaw: Math.PI * 0.7,
+        workZone: "rig",
+        stationed: true,
+        position: { x: 0.07, y: 0.16, z: 0 },
+        yaw: -0.6,
         speed: 0,
         phase: 1.1,
         waypoints: []
     },
     {
-        name: "workerTechnical",
-        role: "technical",
-        position: { x: 0.18, y: 0.18, z: 0 },
-        speed: 0.034,
-        phase: 2.2,
+        name: "workerPatrol",
+        role: "patrol",
+        workZone: "yard",
+        stationed: false,
+        position: { x: -0.08, y: 0.06, z: 0 },
+        speed: 0.04,
+        phase: 0.2,
         waypoints: [
-            new THREE.Vector3(0.14, 0.12, 0),
-            new THREE.Vector3(0.38, 0.12, 0),
-            new THREE.Vector3(0.38, 0.34, 0),
-            new THREE.Vector3(0.14, 0.34, 0)
+            new THREE.Vector3(-0.08, 0.06, 0),
+            new THREE.Vector3(-0.22, -0.12, 0),
+            new THREE.Vector3(0.07, 0.16, 0),
+            new THREE.Vector3(0.06, -0.16, 0)
+        ]
+    },
+    {
+        name: "workerTanks",
+        role: "tankWork",
+        workZone: "tanks",
+        stationed: true,
+        position: { x: -0.22, y: -0.12, z: 0 },
+        yaw: Math.PI,
+        speed: 0,
+        phase: 2.2,
+        waypoints: []
+    },
+    {
+        name: "workerPipes",
+        role: "pipeWork",
+        workZone: "pipes",
+        stationed: true,
+        position: { x: 0.06, y: -0.16, z: 0 },
+        yaw: Math.PI * 0.5,
+        speed: 0,
+        phase: 0.8,
+        waypoints: []
+    },
+    {
+        name: "workerField",
+        role: "fieldPatrol",
+        workZone: "yard",
+        stationed: false,
+        position: { x: -0.32, y: 0.18, z: 0 },
+        speed: 0.036,
+        phase: 2.8,
+        waypoints: [
+            new THREE.Vector3(-0.32, 0.18, 0),
+            new THREE.Vector3(-0.18, 0.28, 0),
+            new THREE.Vector3(-0.28, 0.02, 0)
         ]
     }
 ];
@@ -239,14 +281,6 @@ function lerpAngle(current, target, maxStep) {
     return current + Math.sign(diff) * maxStep;
 }
 
-function isInsideCircle(x, y, zone, padding = 0) {
-    return Math.hypot(x - zone.x, y - zone.y) < zone.radius + padding;
-}
-
-function isInsideAvoidZone(x, y, padding = 0) {
-    return BEAR_AVOID_ZONES.some((zone) => isInsideCircle(x, y, zone, padding));
-}
-
 function isInsideBounds(x, y) {
     return x >= BEAR_WANDER_BOUNDS.minX
         && x <= BEAR_WANDER_BOUNDS.maxX
@@ -254,29 +288,84 @@ function isInsideBounds(x, y) {
         && y <= BEAR_WANDER_BOUNDS.maxY;
 }
 
-function segmentHitsZone(ax, ay, bx, by, zone) {
-    const abx = bx - ax;
-    const aby = by - ay;
-    const acx = zone.x - ax;
-    const acy = zone.y - ay;
-    const abLen2 = abx * abx + aby * aby;
+function isInsideObstacle(x, y, obstacle, padding = 0) {
+    const radiusX = obstacle.radiusX + padding;
+    const radiusY = obstacle.radiusY + padding;
 
-    if (abLen2 < 1e-8) {
-        return isInsideCircle(ax, ay, zone);
-    }
-
-    const t = Math.max(0, Math.min(1, (acx * abx + acy * aby) / abLen2));
-    const px = ax + abx * t;
-    const py = ay + aby * t;
-    return Math.hypot(px - zone.x, py - zone.y) < zone.radius;
-}
-
-function isPathAllowed(ax, ay, bx, by) {
-    if (!isInsideBounds(bx, by) || isInsideAvoidZone(bx, by)) {
+    if (radiusX <= 0 || radiusY <= 0) {
         return false;
     }
 
-    return !BEAR_AVOID_ZONES.some((zone) => segmentHitsZone(ax, ay, bx, by, zone));
+    const dx = (x - obstacle.x) / radiusX;
+    const dy = (y - obstacle.y) / radiusY;
+    return dx * dx + dy * dy < 1;
+}
+
+export function isPointInsideSceneObstacle(point, padding = CHARACTER_RADIUS) {
+    return SCENE_OBSTACLES.some((obstacle) => isInsideObstacle(point.x, point.y, obstacle, padding));
+}
+
+function segmentHitsUnitCircle(x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const startInside = x1 * x1 + y1 * y1 < 1;
+
+    if (startInside) {
+        return true;
+    }
+
+    const a = dx * dx + dy * dy;
+
+    if (a < 1e-12) {
+        return startInside;
+    }
+
+    const b = 2 * (x1 * dx + y1 * dy);
+    const c = x1 * x1 + y1 * y1 - 1;
+    const discriminant = b * b - 4 * a * c;
+
+    if (discriminant < 0) {
+        return false;
+    }
+
+    const sqrt = Math.sqrt(discriminant);
+    const t1 = (-b - sqrt) / (2 * a);
+    const t2 = (-b + sqrt) / (2 * a);
+    return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
+}
+
+function segmentHitsObstacle(ax, ay, bx, by, obstacle, padding = 0) {
+    const radiusX = obstacle.radiusX + padding;
+    const radiusY = obstacle.radiusY + padding;
+
+    if (radiusX <= 0 || radiusY <= 0) {
+        return false;
+    }
+
+    return segmentHitsUnitCircle(
+        (ax - obstacle.x) / radiusX,
+        (ay - obstacle.y) / radiusY,
+        (bx - obstacle.x) / radiusX,
+        (by - obstacle.y) / radiusY
+    );
+}
+
+function doesPathCrossObstacle(from, to, padding = CHARACTER_RADIUS) {
+    if (isPointInsideSceneObstacle(to, padding)) {
+        return true;
+    }
+
+    return SCENE_OBSTACLES.some((obstacle) => {
+        return segmentHitsObstacle(from.x, from.y, to.x, to.y, obstacle, padding);
+    });
+}
+
+function isPathAllowed(ax, ay, bx, by, padding = CHARACTER_RADIUS) {
+    if (!isInsideBounds(bx, by) || isPointInsideSceneObstacle({ x: bx, y: by }, padding)) {
+        return false;
+    }
+
+    return !doesPathCrossObstacle({ x: ax, y: ay }, { x: bx, y: by }, padding);
 }
 
 function pickRandomWanderPoint(rng, fromX, fromY) {
@@ -284,7 +373,7 @@ function pickRandomWanderPoint(rng, fromX, fromY) {
         const x = THREE.MathUtils.lerp(BEAR_WANDER_BOUNDS.minX, BEAR_WANDER_BOUNDS.maxX, rng());
         const y = THREE.MathUtils.lerp(BEAR_WANDER_BOUNDS.minY, BEAR_WANDER_BOUNDS.maxY, rng());
 
-        if (isPathAllowed(fromX, fromY, x, y)) {
+        if (isPathAllowed(fromX, fromY, x, y) && !isPointInsideSceneObstacle({ x, y })) {
             return new THREE.Vector3(x, y, 0);
         }
     }
@@ -306,7 +395,7 @@ function pickRandomWanderPoint(rng, fromX, fromY) {
             BEAR_WANDER_BOUNDS.maxY
         );
 
-        if (isPathAllowed(fromX, fromY, x, y)) {
+        if (isPathAllowed(fromX, fromY, x, y) && !isPointInsideSceneObstacle({ x, y })) {
             return new THREE.Vector3(x, y, 0);
         }
     }
@@ -505,6 +594,12 @@ function updateBearInstanceMovement(bear, delta) {
         return;
     }
 
+    if (doesPathCrossObstacle(position, target) || !isInsideBounds(target.x, target.y)) {
+        data.target = pickRandomWanderPoint(data.rng, position.x, position.y);
+        data.walkAmount = 0;
+        return;
+    }
+
     const nextX = position.x + (dx / distance) * Math.min(data.speed * delta, distance);
     const nextY = position.y + (dy / distance) * Math.min(data.speed * delta, distance);
 
@@ -650,14 +745,16 @@ function createWorkerInstance(config) {
     const root = createPlacedGroup(visual, config.position, yaw);
     root.name = config.name;
     root.userData.role = config.role;
-    root.userData.mode = config.role === "rigWork" ? "work" : "walk";
+    root.userData.workZone = config.workZone || "yard";
+    root.userData.stationed = Boolean(config.stationed);
+    root.userData.mode = config.stationed ? "work" : "walk";
     root.userData.parts = visual.userData.parts;
     root.userData.waypoints = config.waypoints;
     root.userData.waypointIndex = 0;
     root.userData.speed = config.speed;
     root.userData.phase = config.phase;
-    root.userData.pauseTimer = config.role === "rigWork" ? 0 : 0.2;
-    root.userData.workTimer = config.role === "rigWork" ? 4 : 0;
+    root.userData.pauseTimer = config.stationed ? 0 : 0.2;
+    root.userData.workTimer = config.stationed ? 3.5 + config.phase : 0;
 
     return root;
 }
@@ -722,10 +819,28 @@ export function updateWorkerAnimation(worker, delta, elapsedTime) {
     void delta;
 }
 
+function findClearWorkerWaypoint(worker, startIndex) {
+    const waypoints = worker.userData.waypoints;
+    if (!waypoints.length) {
+        return -1;
+    }
+
+    for (let offset = 0; offset < waypoints.length; offset += 1) {
+        const index = (startIndex + offset) % waypoints.length;
+        const candidate = waypoints[index];
+
+        if (isPathAllowed(worker.position.x, worker.position.y, candidate.x, candidate.y)) {
+            return index;
+        }
+    }
+
+    return -1;
+}
+
 function updateWorkerMovement(worker, delta) {
     const data = worker.userData;
 
-    if (data.role === "rigWork") {
+    if (data.stationed) {
         data.workTimer -= delta;
         if (data.workTimer <= 0) {
             data.mode = data.mode === "work" ? "idle" : "work";
@@ -736,7 +851,7 @@ function updateWorkerMovement(worker, delta) {
 
     if (data.pauseTimer > 0) {
         data.pauseTimer -= delta;
-        data.mode = data.role === "patrol" && data.pauseTimer < 0.8 ? "work" : "idle";
+        data.mode = data.pauseTimer < 0.8 ? "work" : "idle";
         return;
     }
 
@@ -746,15 +861,30 @@ function updateWorkerMovement(worker, delta) {
         return;
     }
 
-    const target = waypoints[data.waypointIndex];
-    const dx = target.x - worker.position.x;
-    const dy = target.y - worker.position.y;
-    const distance = Math.hypot(dx, dy);
+    let target = waypoints[data.waypointIndex];
+    let dx = target.x - worker.position.x;
+    let dy = target.y - worker.position.y;
+    let distance = Math.hypot(dx, dy);
 
     if (distance <= 0.02) {
-        data.waypointIndex = (data.waypointIndex + 1) % waypoints.length;
+        const nextIndex = findClearWorkerWaypoint(worker, data.waypointIndex + 1);
+        data.waypointIndex = nextIndex === -1 ? (data.waypointIndex + 1) % waypoints.length : nextIndex;
         data.pauseTimer = 0.6 + Math.random() * 1.4;
         data.mode = "idle";
+        return;
+    }
+
+    if (doesPathCrossObstacle(worker.position, target) || !isInsideBounds(target.x, target.y)) {
+        const nextIndex = findClearWorkerWaypoint(worker, data.waypointIndex + 1);
+
+        if (nextIndex === -1) {
+            data.mode = "idle";
+            data.pauseTimer = 0.8;
+            return;
+        }
+
+        data.waypointIndex = nextIndex;
+        data.walkAmount = 0;
         return;
     }
 
@@ -766,8 +896,19 @@ function updateWorkerMovement(worker, delta) {
     );
 
     const step = Math.min(data.speed * delta, distance);
-    worker.position.x += (dx / distance) * step;
-    worker.position.y += (dy / distance) * step;
+    const nextX = worker.position.x + (dx / distance) * step;
+    const nextY = worker.position.y + (dy / distance) * step;
+
+    if (!isPathAllowed(worker.position.x, worker.position.y, nextX, nextY)) {
+        const nextIndex = findClearWorkerWaypoint(worker, data.waypointIndex + 1);
+        data.waypointIndex = nextIndex === -1 ? data.waypointIndex : nextIndex;
+        data.mode = "idle";
+        data.pauseTimer = 0.5;
+        return;
+    }
+
+    worker.position.x = nextX;
+    worker.position.y = nextY;
     worker.position.z = 0;
 }
 
@@ -854,7 +995,7 @@ export function createProceduralOilRig() {
     addPart(visual, geo.cylLow, mat.rust, 0.16, 0.18, 0.10, 0.02, 0.22, 0.02, 0, 0, Math.PI / 2);
 
     placeYUpByFootprint(visual, PROCEDURAL_RIG_FOOTPRINT);
-    rigRoot = createPlacedGroup(visual, { x: 0, y: 0.02, z: 0 });
+    rigRoot = createPlacedGroup(visual, RIG_POSITION);
     rigRoot.name = "proceduralOilRig";
 
     return Promise.resolve(rigRoot);
@@ -882,7 +1023,7 @@ function createPumpjack() {
     addPart(visual, geo.cone, mat.rust, 0.22, 0.16, 0, 0.04, 0.06, 0.04);
 
     placeYUpByFootprint(visual, 0.13);
-    const root = createPlacedGroup(visual, { x: 0.24, y: -0.10, z: 0 }, -0.4);
+    const root = createPlacedGroup(visual, PUMPJACK_POSITION, 0);
     root.name = "pumpjack";
     root.userData.beam = beam;
     pumpjackBeam = beam;
@@ -905,25 +1046,82 @@ function createTanks() {
     addPart(visual, geo.box, mat.concrete, 0, 0.015, 0, 0.42, 0.03, 0.22);
 
     placeYUpByFootprint(visual, 0.18);
-    const root = createPlacedGroup(visual, { x: 0.28, y: 0.24, z: 0 }, 0.2);
+    const root = createPlacedGroup(visual, TANKS_POSITION, 0);
     root.name = "tanks";
     return root;
+}
+
+function mapToLocal(mapX, mapY, height) {
+    return {
+        x: mapX,
+        y: height,
+        z: -mapY
+    };
+}
+
+function addPipeSegment(visual, geo, mat, x1, y1, x2, y2, height, radius) {
+    const start = mapToLocal(x1, y1, height);
+    const end = mapToLocal(x2, y2, height);
+    addStrut(visual, geo.cylLow, mat, start.x, start.y, start.z, end.x, end.y, end.z, radius);
+}
+
+function addPipeElbow(visual, geo, mat, mapX, mapY, height, radius) {
+    const point = mapToLocal(mapX, mapY, height);
+    addPart(visual, geo.sphereLow, mat, point.x, point.y, point.z, radius * 1.35, radius * 1.35, radius * 1.35);
+}
+
+function addPipeSupports(visual, geo, mat, x1, y1, x2, y2, height, spacing) {
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    const count = Math.max(1, Math.round(length / spacing));
+
+    for (let i = 1; i < count; i += 1) {
+        const t = i / count;
+        const mapX = x1 + (x2 - x1) * t;
+        const mapY = y1 + (y2 - y1) * t;
+        const top = mapToLocal(mapX, mapY, height * 0.5);
+        addPart(visual, geo.cylLow, mat, top.x, top.y, top.z, 0.009, height, 0.009);
+        addPart(visual, geo.box, mat, top.x, 0.008, top.z, 0.028, 0.016, 0.028);
+    }
 }
 
 function createPipes() {
     const { geo, mat } = getKit();
     const visual = new THREE.Group();
+    visual.name = "pipes";
 
-    addStrut(visual, geo.cylLow, mat.rust, -0.16, 0.04, 0, 0.16, 0.04, 0, 0.016);
-    addStrut(visual, geo.cylLow, mat.rust, 0.16, 0.04, 0, 0.16, 0.04, 0.18, 0.016);
-    addPart(visual, geo.torus, mat.steelDark, 0.16, 0.04, 0, 0.03, 0.03, 0.03, Math.PI / 2, 0, 0);
-    addPart(visual, geo.box, mat.steelDark, -0.08, 0.025, 0, 0.03, 0.05, 0.03);
-    addPart(visual, geo.box, mat.steelDark, 0.08, 0.025, 0, 0.03, 0.05, 0.03);
+    const height = 0.05;
+    const radius = 0.014;
+    const route = [
+        { x: -0.10, y: -0.26 },
+        { x: 0.20, y: -0.26 },
+        { x: 0.20, y: 0.10 }
+    ];
 
-    placeYUpByFootprint(visual, 0.22);
-    const root = createPlacedGroup(visual, { x: 0.22, y: 0.08, z: 0 }, 0.6);
-    root.name = "pipes";
-    return root;
+    const riserStart = mapToLocal(route[0].x, route[0].y, height * 0.5);
+    addPart(visual, geo.cylLow, mat.rust, riserStart.x, riserStart.y, riserStart.z, radius, height, radius);
+    addPart(visual, geo.cylLow, mat.steelDark, riserStart.x, 0.01, riserStart.z, radius * 1.4, 0.02, radius * 1.4);
+
+    for (let i = 0; i < route.length - 1; i += 1) {
+        const from = route[i];
+        const to = route[i + 1];
+        addPipeSegment(visual, geo.cylLow, mat.rust, from.x, from.y, to.x, to.y, height, radius);
+        addPipeSupports(visual, geo, mat.steelDark, from.x, from.y, to.x, to.y, height, 0.08);
+        addPipeElbow(visual, geo.sphereLow, mat.steelLight, from.x, from.y, height, radius);
+    }
+
+    const last = route[route.length - 1];
+    addPipeElbow(visual, geo.sphereLow, mat.steelLight, last.x, last.y, height, radius);
+
+    const riserEnd = mapToLocal(last.x, last.y, height + 0.03);
+    addPart(visual, geo.cylLow, mat.rust, riserEnd.x, height + 0.015, riserEnd.z, radius, 0.03, radius);
+    addPart(visual, geo.box, mat.yellow, riserEnd.x, height + 0.03, riserEnd.z, 0.03, 0.018, 0.03);
+
+    const valve = mapToLocal(0.06, -0.26, height);
+    addPart(visual, geo.box, mat.yellow, valve.x, valve.y + 0.012, valve.z, 0.022, 0.02, 0.03);
+    addPart(visual, geo.cylLow, mat.steelDark, valve.x, valve.y + 0.024, valve.z, 0.008, 0.016, 0.008);
+
+    visual.rotation.x = Math.PI / 2;
+    return visual;
 }
 
 function createContainers() {
@@ -936,7 +1134,7 @@ function createContainers() {
     addPart(visual, geo.box, mat.yellow, 0.09, 0.085, 0.01, 0.14, 0.015, 0.07);
 
     placeYUpByFootprint(visual, 0.16);
-    const root = createPlacedGroup(visual, { x: 0.22, y: -0.30, z: 0 }, 0.15);
+    const root = createPlacedGroup(visual, CONTAINERS_POSITION, 0.1);
     root.name = "containers";
     return root;
 }
@@ -956,7 +1154,7 @@ function createFences() {
     });
 
     placeYUpByFootprint(visual, 0.20);
-    const root = createPlacedGroup(visual, { x: 0.28, y: 0.24, z: 0 });
+    const root = createPlacedGroup(visual, TANKS_POSITION);
     root.name = "fences";
     return root;
 }
