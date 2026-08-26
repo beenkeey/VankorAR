@@ -23,9 +23,9 @@ export const SCENE_LAYOUT = {
     helipad: { x: -0.21, y: 0.032, z: 0 },
     helipadSize: 0.10,
     helipadRadius: 0.055,
-    tanks: { x: -0.05, y: 0.158, z: 0 },
+    tanks: { x: 0.13, y: -0.108, z: 0 },
     tanksFootprint: 0.115,
-    pumpjack: { x: 0.10, y: 0.150, z: 0 },
+    pumpjack: { x: 0.27, y: -0.108, z: 0 },
     pumpjackFootprint: 0.10,
     rig: { x: 0.33, y: 0.128, z: 0 },
     rigFootprint: 0.16,
@@ -35,8 +35,9 @@ export const SCENE_LAYOUT = {
     containers: { x: -0.30, y: -0.155, z: 0 },
     containersFootprint: 0.08,
     yard: { x: 0.00, y: 0.038, radiusX: 0.12, radiusY: 0.022 },
-    processCorridorY: 0.070,
-    road: { x: 0.12, y: 0.070, z: 0, length: 0.38 },
+    processCorridorY: 0.008,
+    eastCorridorX: 0.445,
+    road: { x: 0.34, y: 0.008, z: 0, length: 0.22 },
     signs: [
         { kind: "uc", x: -0.46, y: -0.18, yaw: 0 },
         { kind: "vankor", x: 0.44, y: -0.18, yaw: 0 }
@@ -61,10 +62,17 @@ const CONTAINERS_POSITION = SCENE_LAYOUT.containers;
 const BUILDING_POSITION = SCENE_LAYOUT.building;
 const RIG_BASE_SIZE = 0.50;
 const RIG_SCALE = PROCEDURAL_RIG_FOOTPRINT / RIG_BASE_SIZE;
+const TANK_VISUAL_SPAN = 0.43;
+const PUMP_VISUAL_SPAN = 0.50;
+const TANK_SCALE = SCENE_LAYOUT.tanksFootprint / TANK_VISUAL_SPAN;
+const PUMP_SCALE = SCENE_LAYOUT.pumpjackFootprint / PUMP_VISUAL_SPAN;
 const PIPE_RADIUS = 0.0055;
-const PIPE_NOZZLE_RADIUS = 0.005;
-const PIPE_SUPPORT_TOP = 0.034;
-const PIPE_CENTER_Y = PIPE_SUPPORT_TOP + PIPE_RADIUS;
+const PIPE_NOZZLE_RADIUS = 0.004;
+const PIPE_STUB_LENGTH = 0.011;
+const PIPE_CENTER_Y = 0.18 * PUMP_SCALE;
+const PIPE_SUPPORT_TOP = PIPE_CENTER_Y - PIPE_RADIUS;
+const TANK_NOZZLE_Z = 0.092 * TANK_SCALE;
+const RIG_NOZZLE_Z = 0.086 * RIG_SCALE;
 const LADDER_RUNG_COUNT = 16;
 const CLIMB_SPEED = 0.055;
 const RIG_EXIT_SPEED = 0.030;
@@ -140,8 +148,10 @@ export const SCENE_OBSTACLES = [
     { name: "tanks", x: TANKS_POSITION.x, y: TANKS_POSITION.y, radiusX: 0.085, radiusY: 0.062 },
     { name: "containers", x: CONTAINERS_POSITION.x, y: CONTAINERS_POSITION.y, radiusX: 0.055, radiusY: 0.048 },
     { name: "lake", x: SCENE_LAYOUT.lakeKeepout.x, y: SCENE_LAYOUT.lakeKeepout.y, radiusX: SCENE_LAYOUT.lakeKeepout.radiusX, radiusY: SCENE_LAYOUT.lakeKeepout.radiusY },
-    { name: "pipesTanksPump", x: (TANKS_POSITION.x + PUMPJACK_POSITION.x) * 0.5, y: TANKS_POSITION.y, radiusX: 0.08, radiusY: 0.022 },
-    { name: "pipesProcess", x: 0.20, y: SCENE_LAYOUT.processCorridorY, radiusX: 0.16, radiusY: 0.020 },
+    { name: "pipesTanksPump", x: (TANKS_POSITION.x + PUMPJACK_POSITION.x) * 0.5, y: TANKS_POSITION.y, radiusX: 0.07, radiusY: 0.018 },
+    { name: "pipesSouth", x: 0.35, y: SCENE_LAYOUT.processCorridorY, radiusX: 0.12, radiusY: 0.016 },
+    { name: "pipesEast", x: SCENE_LAYOUT.eastCorridorX, y: (SCENE_LAYOUT.processCorridorY + RIG_POSITION.y) * 0.5, radiusX: 0.016, radiusY: 0.07 },
+    { name: "pipesRigIn", x: RIG_POSITION.x + 0.09, y: RIG_POSITION.y - 0.006, radiusX: 0.028, radiusY: 0.016 },
     { name: "pumpPanel", x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y - 0.065, radiusX: 0.022, radiusY: 0.022 },
     { name: "helipad", x: HELI_PAD_CENTER.x, y: HELI_PAD_CENTER.y, radiusX: HELI_PAD_RADIUS, radiusY: HELI_PAD_RADIUS }
 ];
@@ -149,7 +159,7 @@ export const SCENE_OBSTACLES = [
 export const WORK_ZONES = [
     { name: "rig", x: RIG_POSITION.x - 0.04, y: RIG_POSITION.y - 0.075, radiusX: 0.05, radiusY: 0.032 },
     { name: "tanks", x: TANKS_POSITION.x - 0.01, y: TANKS_POSITION.y - 0.058, radiusX: 0.048, radiusY: 0.028 },
-    { name: "pipes", x: 0.18, y: SCENE_LAYOUT.processCorridorY - 0.018, radiusX: 0.06, radiusY: 0.022 },
+    { name: "pipes", x: SCENE_LAYOUT.eastCorridorX - 0.04, y: SCENE_LAYOUT.processCorridorY + 0.02, radiusX: 0.05, radiusY: 0.022 },
     { name: "yard", x: SCENE_LAYOUT.yard.x, y: SCENE_LAYOUT.yard.y, radiusX: SCENE_LAYOUT.yard.radiusX, radiusY: SCENE_LAYOUT.yard.radiusY }
 ];
 
@@ -203,30 +213,69 @@ const PUMPJACK_PANEL_STAND = new THREE.Vector3(
 );
 const PUMPJACK_INSPECT = new THREE.Vector3(PUMPJACK_POSITION.x + 0.035, PUMPJACK_POSITION.y - 0.055, 0);
 
-const PUMP_INLET_CONNECTION = { x: PUMPJACK_POSITION.x - 0.042, y: PUMPJACK_POSITION.y };
-const PUMP_OUTLET_CONNECTION = { x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y - 0.016 };
-const RIG_PROCESS_CONNECTION = { x: RIG_POSITION.x - 0.082, y: RIG_POSITION.y - 0.004 };
+function visualMapOffset(vx, vz, scale) {
+    return {
+        x: vx * scale,
+        y: -vz * scale
+    };
+}
+
+const TANK_EAST_OFFSET = visualMapOffset(0.212, 0, TANK_SCALE);
+const TANK_NORTH_OFFSETS = [-0.12, 0, 0.12].map((vx) => visualMapOffset(vx, -0.088, TANK_SCALE));
+const PUMP_WEST_OFFSET = visualMapOffset(-0.208, 0, PUMP_SCALE);
+const PUMP_NORTH_OFFSET = visualMapOffset(0, -0.096, PUMP_SCALE);
+const RIG_EAST_OFFSET = visualMapOffset(0.242, 0.02, RIG_SCALE);
+
+const PUMP_INLET_CONNECTION = {
+    x: PUMPJACK_POSITION.x + PUMP_WEST_OFFSET.x,
+    y: PUMPJACK_POSITION.y + PUMP_WEST_OFFSET.y
+};
+const PUMP_OUTLET_CONNECTION = {
+    x: PUMPJACK_POSITION.x + PUMP_NORTH_OFFSET.x,
+    y: PUMPJACK_POSITION.y + PUMP_NORTH_OFFSET.y
+};
+const RIG_PROCESS_CONNECTION = {
+    x: RIG_POSITION.x + RIG_EAST_OFFSET.x,
+    y: RIG_POSITION.y + RIG_EAST_OFFSET.y
+};
 
 const TANK_OUTLET_CONNECTIONS = {
-    east: { x: TANKS_POSITION.x + 0.052, y: TANKS_POSITION.y, dir: { x: 1, y: 0 } },
-    northWest: { x: TANKS_POSITION.x - 0.034, y: TANKS_POSITION.y + 0.020, dir: { x: 0, y: 1 } },
-    northMid: { x: TANKS_POSITION.x, y: TANKS_POSITION.y + 0.020, dir: { x: 0, y: 1 } },
-    northEast: { x: TANKS_POSITION.x + 0.034, y: TANKS_POSITION.y + 0.020, dir: { x: 0, y: 1 } }
+    east: {
+        x: TANKS_POSITION.x + TANK_EAST_OFFSET.x,
+        y: TANKS_POSITION.y + TANK_EAST_OFFSET.y,
+        dir: { x: 1, y: 0 }
+    },
+    northWest: {
+        x: TANKS_POSITION.x + TANK_NORTH_OFFSETS[0].x,
+        y: TANKS_POSITION.y + TANK_NORTH_OFFSETS[0].y,
+        dir: { x: 0, y: 1 }
+    },
+    northMid: {
+        x: TANKS_POSITION.x + TANK_NORTH_OFFSETS[1].x,
+        y: TANKS_POSITION.y + TANK_NORTH_OFFSETS[1].y,
+        dir: { x: 0, y: 1 }
+    },
+    northEast: {
+        x: TANKS_POSITION.x + TANK_NORTH_OFFSETS[2].x,
+        y: TANKS_POSITION.y + TANK_NORTH_OFFSETS[2].y,
+        dir: { x: 0, y: 1 }
+    }
 };
 
 const PIPE_STUBS = [
-    { from: TANK_OUTLET_CONNECTIONS.east, inward: { x: -1, y: 0 } },
-    { from: TANK_OUTLET_CONNECTIONS.northWest, inward: { x: 0, y: -1 } },
-    { from: TANK_OUTLET_CONNECTIONS.northMid, inward: { x: 0, y: -1 } },
-    { from: TANK_OUTLET_CONNECTIONS.northEast, inward: { x: 0, y: -1 } },
-    { from: PUMP_INLET_CONNECTION, inward: { x: 1, y: 0 } },
-    { from: PUMP_OUTLET_CONNECTION, inward: { x: 0, y: 1 } },
-    { from: RIG_PROCESS_CONNECTION, inward: { x: 1, y: 0 }, length: 0.016 }
+    { from: TANK_OUTLET_CONNECTIONS.east, inward: { x: -1, y: 0 }, z: TANK_NOZZLE_Z },
+    { from: TANK_OUTLET_CONNECTIONS.northWest, inward: { x: 0, y: -1 }, z: TANK_NOZZLE_Z },
+    { from: TANK_OUTLET_CONNECTIONS.northMid, inward: { x: 0, y: -1 }, z: TANK_NOZZLE_Z },
+    { from: TANK_OUTLET_CONNECTIONS.northEast, inward: { x: 0, y: -1 }, z: TANK_NOZZLE_Z },
+    { from: PUMP_INLET_CONNECTION, inward: { x: 1, y: 0 }, z: PIPE_CENTER_Y },
+    { from: PUMP_OUTLET_CONNECTION, inward: { x: 0, y: -1 }, z: PIPE_CENTER_Y },
+    { from: RIG_PROCESS_CONNECTION, inward: { x: -1, y: 0 }, z: RIG_NOZZLE_Z, length: 0.012 }
 ];
 
 const PIPE_LINES = [
     {
         name: "tanksHeader",
+        height: TANK_NOZZLE_Z,
         points: [
             TANK_OUTLET_CONNECTIONS.northWest,
             TANK_OUTLET_CONNECTIONS.northMid,
@@ -237,6 +286,7 @@ const PIPE_LINES = [
     },
     {
         name: "tanksToPump",
+        height: TANK_NOZZLE_Z,
         points: [
             TANK_OUTLET_CONNECTIONS.east,
             { x: PUMP_INLET_CONNECTION.x, y: TANK_OUTLET_CONNECTIONS.east.y },
@@ -245,10 +295,12 @@ const PIPE_LINES = [
     },
     {
         name: "pumpToRig",
+        height: PIPE_CENTER_Y,
         points: [
             PUMP_OUTLET_CONNECTION,
             { x: PUMP_OUTLET_CONNECTION.x, y: SCENE_LAYOUT.processCorridorY },
-            { x: RIG_PROCESS_CONNECTION.x, y: SCENE_LAYOUT.processCorridorY },
+            { x: SCENE_LAYOUT.eastCorridorX, y: SCENE_LAYOUT.processCorridorY },
+            { x: SCENE_LAYOUT.eastCorridorX, y: RIG_PROCESS_CONNECTION.y },
             RIG_PROCESS_CONNECTION
         ]
     }
@@ -437,7 +489,7 @@ const WORKER_SPAWNS = [
             new THREE.Vector3(SCENE_LAYOUT.yard.x, SCENE_LAYOUT.yard.y, 0),
             new THREE.Vector3(TANKS_POSITION.x - 0.06, TANKS_POSITION.y - 0.06, 0),
             new THREE.Vector3(BUILDING_POSITION.x + 0.08, BUILDING_POSITION.y - 0.08, 0),
-            new THREE.Vector3(0.16, SCENE_LAYOUT.processCorridorY - 0.028, 0)
+            new THREE.Vector3(SCENE_LAYOUT.eastCorridorX - 0.06, SCENE_LAYOUT.processCorridorY - 0.02, 0)
         ]
     },
     {
@@ -459,7 +511,7 @@ const WORKER_SPAWNS = [
         role: "pipeWork",
         workZone: "pipes",
         stationed: true,
-        position: { x: 0.18, y: SCENE_LAYOUT.processCorridorY - 0.018, z: 0 },
+        position: { x: SCENE_LAYOUT.eastCorridorX - 0.04, y: SCENE_LAYOUT.processCorridorY + 0.02, z: 0 },
         yaw: Math.PI * 0.5,
         speed: 0,
         phase: 0.8,
@@ -2604,9 +2656,14 @@ function addPipeSupport(visual, geo, mat, mapX, mapY, supportTopY, pipeRadius) {
 
 function addPipeSupports(visual, geo, mat, x1, y1, x2, y2, supportTopY, pipeRadius, spacing) {
     const length = Math.hypot(x2 - x1, y2 - y1);
-    const count = Math.max(2, Math.round(length / spacing));
+    if (length < 0.08) {
+        return 0;
+    }
 
-    for (let i = 0; i <= count; i += 1) {
+    const count = Math.max(2, Math.round(length / spacing));
+    let placed = 0;
+
+    for (let i = 1; i < count; i += 1) {
         const t = i / count;
         addPipeSupport(
             visual,
@@ -2617,7 +2674,23 @@ function addPipeSupports(visual, geo, mat, x1, y1, x2, y2, supportTopY, pipeRadi
             supportTopY,
             pipeRadius
         );
+        placed += 1;
     }
+
+    return placed;
+}
+
+function addPipeRiser(visual, geo, mat, mapX, mapY, y0, y1, radius) {
+    if (Math.abs(y1 - y0) < 0.003) {
+        return;
+    }
+
+    const { geo: kitGeo, mat: kitMat } = getKit();
+    const start = mapToLocal(mapX, mapY, y0);
+    const end = mapToLocal(mapX, mapY, y1);
+    addStrut(visual, geo, mat, start.x, start.y, start.z, end.x, end.y, end.z, radius);
+    addPipeElbow(visual, kitGeo.sphereLow, kitMat.steelLight, mapX, mapY, y0, radius);
+    addPipeElbow(visual, kitGeo.sphereLow, kitMat.steelLight, mapX, mapY, y1, radius);
 }
 
 function addPipeFlange(visual, geo, mat, mapX, mapY, centerY, dirX, dirY, radius) {
@@ -2669,20 +2742,31 @@ function createPipes() {
     visual.name = "pipes";
 
     const pipeRadius = PIPE_RADIUS;
-    const supportTopY = PIPE_SUPPORT_TOP;
-    const pipeCenterY = PIPE_CENTER_Y;
+    let supportCount = 0;
 
     PIPE_LINES.forEach((line) => {
         const points = line.points;
+        const height = line.height === undefined ? PIPE_CENTER_Y : line.height;
         for (let i = 0; i < points.length - 1; i += 1) {
             const from = points[i];
             const to = points[i + 1];
             const length = Math.hypot(to.x - from.x, to.y - from.y);
-            addPipeSegment(visual, geo.cylLow, mat.rust, from.x, from.y, to.x, to.y, pipeCenterY, pipeRadius);
-            if (length >= 0.05) {
-                addPipeSupports(visual, geo, mat.steelDark, from.x, from.y, to.x, to.y, supportTopY, pipeRadius, 0.07);
+            addPipeSegment(visual, geo.cylLow, mat.rust, from.x, from.y, to.x, to.y, height, pipeRadius);
+            if (length >= 0.08) {
+                supportCount += addPipeSupports(
+                    visual,
+                    geo,
+                    mat.steelDark,
+                    from.x,
+                    from.y,
+                    to.x,
+                    to.y,
+                    height - pipeRadius,
+                    pipeRadius,
+                    0.07
+                );
             }
-            addPipeElbow(visual, geo.sphereLow, mat.steelLight, from.x, from.y, pipeCenterY, pipeRadius);
+            addPipeElbow(visual, geo.sphereLow, mat.steelLight, from.x, from.y, height, pipeRadius);
             if (length >= 0.08) {
                 addPipeFlange(
                     visual,
@@ -2690,7 +2774,7 @@ function createPipes() {
                     mat.steelLight,
                     (from.x + to.x) * 0.5,
                     (from.y + to.y) * 0.5,
-                    pipeCenterY,
+                    height,
                     to.x - from.x,
                     to.y - from.y,
                     pipeRadius
@@ -2698,8 +2782,29 @@ function createPipes() {
             }
         }
         const last = points[points.length - 1];
-        addPipeElbow(visual, geo.sphereLow, mat.steelLight, last.x, last.y, pipeCenterY, pipeRadius);
+        addPipeElbow(visual, geo.sphereLow, mat.steelLight, last.x, last.y, height, pipeRadius);
     });
+
+    addPipeRiser(
+        visual,
+        geo.cylLow,
+        mat.rust,
+        PUMP_INLET_CONNECTION.x,
+        PUMP_INLET_CONNECTION.y,
+        TANK_NOZZLE_Z,
+        PIPE_CENTER_Y,
+        pipeRadius
+    );
+    addPipeRiser(
+        visual,
+        geo.cylLow,
+        mat.rust,
+        RIG_PROCESS_CONNECTION.x,
+        RIG_PROCESS_CONNECTION.y,
+        PIPE_CENTER_Y,
+        RIG_NOZZLE_Z,
+        pipeRadius
+    );
 
     PIPE_STUBS.forEach((stub) => {
         addPipeStub(
@@ -2708,16 +2813,21 @@ function createPipes() {
             mat,
             stub.from,
             stub.inward,
-            pipeCenterY,
+            stub.z === undefined ? PIPE_CENTER_Y : stub.z,
             pipeRadius,
-            stub.length || 0.022
+            stub.length || PIPE_STUB_LENGTH
         );
     });
 
-    const valve = mapToLocal(0.18, SCENE_LAYOUT.processCorridorY, pipeCenterY);
+    const valve = mapToLocal(
+        (SCENE_LAYOUT.eastCorridorX + PUMP_OUTLET_CONNECTION.x) * 0.5,
+        SCENE_LAYOUT.processCorridorY,
+        PIPE_CENTER_Y
+    );
     addPart(visual, geo.box, mat.yellow, valve.x, valve.y + 0.01, valve.z, 0.014, 0.012, 0.02);
     addPart(visual, geo.cylLow, mat.steelDark, valve.x, valve.y + 0.018, valve.z, 0.005, 0.01, 0.005);
 
+    visual.userData.supportCount = supportCount;
     visual.rotation.x = Math.PI / 2;
     return visual;
 }

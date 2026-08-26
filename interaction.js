@@ -16,7 +16,7 @@ import {
     requestHeliLandingDemo,
     requestPumpjackWorkDemo,
     requestRigWorkDemo
-} from "./procedural-scene.js?v=16";
+} from "./procedural-scene.js?v=17";
 
 const raycaster = new THREE.Raycaster();
 const pointerNdc = new THREE.Vector2();
