@@ -8,11 +8,13 @@
 import * as THREE from "three";
 import {
     getInteractiveObjects,
+    isHeliDemoRunning,
     isPumpjackDemoRunning,
     isRigDemoRunning,
+    requestHeliLandingDemo,
     requestPumpjackWorkDemo,
     requestRigWorkDemo
-} from "./procedural-scene.js?v=12";
+} from "./procedural-scene.js?v=13";
 
 const raycaster = new THREE.Raycaster();
 const pointerNdc = new THREE.Vector2();
@@ -27,6 +29,7 @@ let lastTapAt = 0;
 let bound = false;
 
 const ACTION_IDLE_LABEL = "Показать, как работает";
+const ACTION_HELI_LABEL = "Показать посадку";
 const ACTION_BUSY_LABEL = "Демонстрация выполняется…";
 
 const card = {
@@ -140,9 +143,12 @@ function syncActionButton() {
         ? isRigDemoRunning()
         : type === "pumpjack"
             ? isPumpjackDemoRunning()
-            : false;
+            : type === "helicopter"
+                ? isHeliDemoRunning()
+                : false;
 
-    card.action.textContent = busy ? ACTION_BUSY_LABEL : ACTION_IDLE_LABEL;
+    const idleLabel = type === "helicopter" ? ACTION_HELI_LABEL : ACTION_IDLE_LABEL;
+    card.action.textContent = busy ? ACTION_BUSY_LABEL : idleLabel;
 }
 
 function showCard(object) {
@@ -160,7 +166,8 @@ function showCard(object) {
     }
 
     const showAction = object.userData.interactiveType === "rig"
-        || object.userData.interactiveType === "pumpjack";
+        || object.userData.interactiveType === "pumpjack"
+        || object.userData.interactiveType === "helicopter";
     card.action.classList.toggle("hidden", !showAction);
     syncActionButton();
     card.root.classList.remove("hidden");
@@ -322,6 +329,12 @@ function onActionClick(event) {
 
     if (selectedObject.userData.interactiveType === "pumpjack") {
         requestPumpjackWorkDemo();
+        syncActionButton();
+        return;
+    }
+
+    if (selectedObject.userData.interactiveType === "helicopter") {
+        requestHeliLandingDemo();
         syncActionButton();
     }
 }

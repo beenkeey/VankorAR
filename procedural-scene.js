@@ -48,12 +48,50 @@ const CHARACTER_RADIUS = 0.02;
 const _up = new THREE.Vector3(0, 1, 0);
 const _dir = new THREE.Vector3();
 
-export const BEAR_WANDER_BOUNDS = {
-    minX: -0.40,
-    maxX: 0.40,
-    minY: -0.36,
-    maxY: 0.36
+export const SCENE_EXTENT = {
+    minX: -0.50,
+    maxX: 0.56,
+    minY: -0.52,
+    maxY: 0.44
 };
+
+export const BEAR_WANDER_BOUNDS = {
+    minX: -0.48,
+    maxX: 0.32,
+    minY: -0.48,
+    maxY: 0.40
+};
+
+export const HELI_PAD_CENTER = { x: 0.42, y: -0.38, z: 0 };
+export const HELI_PAD_SIZE = 0.20;
+export const HELI_PAD_RADIUS = 0.12;
+export const HELI_ZONE_BOUNDS = {
+    minX: HELI_PAD_CENTER.x - 0.14,
+    maxX: HELI_PAD_CENTER.x + 0.14,
+    minY: HELI_PAD_CENTER.y - 0.14,
+    maxY: HELI_PAD_CENTER.y + 0.14
+};
+export const HELI_CRUISE_Z = 0.28;
+export const HELI_HOVER_Z = 0.16;
+export const HELI_LANDED_Z = 0;
+export const HELI_FLIGHT_POINTS = {
+    far: { x: -0.48, y: 0.16, z: HELI_CRUISE_Z },
+    wait: { x: -0.12, y: 0.42, z: HELI_CRUISE_Z },
+    north: { x: 0.10, y: 0.42, z: HELI_CRUISE_Z },
+    west: { x: -0.48, y: -0.18, z: 0.26 },
+    south: { x: -0.14, y: -0.48, z: 0.26 },
+    approach: { x: 0.28, y: -0.48, z: 0.20 },
+    hover: { x: HELI_PAD_CENTER.x, y: HELI_PAD_CENTER.y, z: HELI_HOVER_Z }
+};
+const HELI_PATROL_KEYS = ["far", "wait", "north", "west"];
+const HELI_APPROACH_KEYS = ["west", "south", "approach", "hover"];
+const HELI_DEPART_KEYS = ["approach", "south", "west"];
+const HELI_FLY_SPEED = 0.08;
+const HELI_LAND_SPEED = 0.042;
+const HELI_ROTOR_FLY = 26;
+const HELI_ROTOR_SLOW = 3.2;
+const HELI_ROTOR_LANDED = 0;
+const HELI_HEIGHT = 0.048;
 
 export const SCENE_OBSTACLES = [
     { name: "rig", x: 0.22, y: 0.24, radiusX: 0.135, radiusY: 0.135 },
@@ -65,7 +103,8 @@ export const SCENE_OBSTACLES = [
     { name: "pipesPumpEast", x: 0.38, y: 0.094, radiusX: 0.035, radiusY: 0.15 },
     { name: "pipesRigProcess", x: 0.356, y: 0.231, radiusX: 0.04, radiusY: 0.03 },
     { name: "pipesTanksHeader", x: -0.220, y: -0.230, radiusX: 0.08, radiusY: 0.03 },
-    { name: "pumpPanel", x: 0.355, y: -0.155, radiusX: 0.028, radiusY: 0.028 }
+    { name: "pumpPanel", x: 0.355, y: -0.155, radiusX: 0.028, radiusY: 0.028 },
+    { name: "helipad", x: HELI_PAD_CENTER.x, y: HELI_PAD_CENTER.y, radiusX: HELI_PAD_RADIUS, radiusY: HELI_PAD_RADIUS }
 ];
 
 export const WORK_ZONES = [
@@ -179,10 +218,10 @@ const BIRD_ROUTES = [
         turnSpeed: 3.2,
         pingPong: true,
         points: [
-            { x: -0.38, y: 0.28, z: 0.22 },
-            { x: -0.12, y: 0.30, z: 0.23 },
-            { x: 0.10, y: 0.29, z: 0.22 },
-            { x: 0.36, y: 0.26, z: 0.21 }
+            { x: -0.46, y: 0.30, z: 0.22 },
+            { x: -0.18, y: 0.38, z: 0.24 },
+            { x: 0.08, y: 0.40, z: 0.23 },
+            { x: 0.22, y: 0.42, z: 0.22 }
         ]
     },
     {
@@ -193,10 +232,10 @@ const BIRD_ROUTES = [
         turnSpeed: 2.6,
         pingPong: true,
         points: [
-            { x: -0.32, y: 0.18, z: 0.19 },
-            { x: -0.24, y: 0.26, z: 0.20 },
-            { x: -0.16, y: 0.20, z: 0.19 },
-            { x: -0.26, y: 0.12, z: 0.18 }
+            { x: -0.42, y: 0.20, z: 0.19 },
+            { x: -0.30, y: 0.32, z: 0.21 },
+            { x: -0.18, y: 0.24, z: 0.19 },
+            { x: -0.34, y: 0.10, z: 0.18 }
         ]
     },
     {
@@ -207,10 +246,10 @@ const BIRD_ROUTES = [
         turnSpeed: 3.8,
         pingPong: true,
         points: [
-            { x: -0.16, y: 0.00, z: 0.20 },
-            { x: -0.04, y: 0.08, z: 0.21 },
-            { x: 0.06, y: 0.04, z: 0.20 },
-            { x: -0.02, y: -0.08, z: 0.19 }
+            { x: -0.18, y: 0.02, z: 0.20 },
+            { x: -0.04, y: 0.10, z: 0.22 },
+            { x: 0.04, y: 0.00, z: 0.20 },
+            { x: -0.06, y: -0.10, z: 0.19 }
         ]
     },
     {
@@ -221,9 +260,9 @@ const BIRD_ROUTES = [
         turnSpeed: 2.4,
         pingPong: true,
         points: [
-            { x: 0.36, y: -0.28, z: 0.18 },
-            { x: 0.38, y: -0.16, z: 0.19 },
-            { x: 0.36, y: 0.02, z: 0.18 }
+            { x: 0.40, y: 0.02, z: 0.19 },
+            { x: 0.46, y: 0.12, z: 0.20 },
+            { x: 0.42, y: 0.22, z: 0.18 }
         ]
     },
     {
@@ -234,9 +273,9 @@ const BIRD_ROUTES = [
         turnSpeed: 3.0,
         pingPong: true,
         points: [
-            { x: -0.38, y: -0.16, z: 0.18 },
-            { x: -0.34, y: -0.30, z: 0.19 },
-            { x: -0.08, y: -0.32, z: 0.18 }
+            { x: -0.46, y: -0.12, z: 0.18 },
+            { x: -0.40, y: -0.32, z: 0.20 },
+            { x: -0.16, y: -0.44, z: 0.19 }
         ]
     },
     {
@@ -247,15 +286,15 @@ const BIRD_ROUTES = [
         turnSpeed: 2.8,
         pingPong: false,
         points: [
-            { x: -0.38, y: -0.08, z: 0.20 },
-            { x: -0.20, y: 0.06, z: 0.22 },
-            { x: -0.06, y: 0.20, z: 0.23 },
-            { x: 0.04, y: 0.34, z: 0.22 },
-            { x: 0.36, y: 0.34, z: 0.21 },
-            { x: 0.38, y: 0.10, z: 0.19 },
-            { x: 0.34, y: -0.22, z: 0.18 },
-            { x: 0.08, y: -0.32, z: 0.19 },
-            { x: -0.22, y: -0.12, z: 0.20 }
+            { x: -0.46, y: -0.06, z: 0.20 },
+            { x: -0.36, y: 0.18, z: 0.22 },
+            { x: -0.16, y: 0.38, z: 0.23 },
+            { x: 0.08, y: 0.42, z: 0.22 },
+            { x: 0.48, y: 0.16, z: 0.20 },
+            { x: 0.48, y: -0.12, z: 0.19 },
+            { x: 0.18, y: -0.48, z: 0.18 },
+            { x: -0.18, y: -0.46, z: 0.19 },
+            { x: -0.36, y: -0.20, z: 0.20 }
         ]
     }
 ];
@@ -263,7 +302,7 @@ const BIRD_ROUTES = [
 const BEAR_SPAWNS = [
     {
         name: "bearForest",
-        position: { x: -0.32, y: 0.26, z: 0 },
+        position: { x: -0.38, y: 0.30, z: 0 },
         speed: 0.042,
         turnSpeed: 1.55,
         phase: 0.35,
@@ -271,12 +310,12 @@ const BEAR_SPAWNS = [
         pause: 1.1,
         pauseMin: 0.9,
         pauseMax: 2.6,
-        zone: { x: -0.30, y: 0.26, radiusX: 0.11, radiusY: 0.09 },
+        zone: { x: -0.36, y: 0.30, radiusX: 0.12, radiusY: 0.10 },
         zoneBias: 0.8
     },
     {
         name: "bearRoad",
-        position: { x: -0.28, y: -0.02, z: 0 },
+        position: { x: -0.32, y: 0.00, z: 0 },
         speed: 0.062,
         turnSpeed: 1.85,
         phase: 1.7,
@@ -284,12 +323,12 @@ const BEAR_SPAWNS = [
         pause: 0.5,
         pauseMin: 0.35,
         pauseMax: 1.4,
-        zone: { x: -0.28, y: -0.02, radiusX: 0.10, radiusY: 0.12 },
+        zone: { x: -0.32, y: 0.00, radiusX: 0.11, radiusY: 0.12 },
         zoneBias: 0.74
     },
     {
-        name: "bearCenter",
-        position: { x: -0.04, y: 0.02, z: 0 },
+        name: "bearSnow",
+        position: { x: 0.00, y: -0.40, z: 0 },
         speed: 0.054,
         turnSpeed: 1.7,
         phase: 2.9,
@@ -297,7 +336,7 @@ const BEAR_SPAWNS = [
         pause: 0.7,
         pauseMin: 0.5,
         pauseMax: 1.9,
-        zone: { x: -0.04, y: 0.04, radiusX: 0.14, radiusY: 0.12 },
+        zone: { x: 0.00, y: -0.40, radiusX: 0.14, radiusY: 0.08 },
         zoneBias: 0.72
     }
 ];
@@ -428,6 +467,8 @@ let activeRigWorker = null;
 let rigWarningLight = null;
 let rigTerminalFx = null;
 let pumpjackTerminalFx = null;
+let helicopterRoot = null;
+let heliPadLightMat = null;
 const interactiveObjects = [];
 
 function markInteractive(object, type, title, description) {
@@ -498,6 +539,49 @@ export function requestPumpjackWorkDemo() {
     }
 
     worker.userData.climbWait = 0;
+    return true;
+}
+
+function isHeliCycleBusy() {
+    if (!helicopterRoot) {
+        return false;
+    }
+
+    const mode = helicopterRoot.userData.mode;
+    return mode === "approach" || mode === "landing" || mode === "takeoff";
+}
+
+export function isHeliDemoRunning() {
+    return isHeliCycleBusy();
+}
+
+export function requestHeliLandingDemo() {
+    if (!helicopterRoot) {
+        return false;
+    }
+
+    if (isHeliCycleBusy()) {
+        return false;
+    }
+
+    const data = helicopterRoot.userData;
+    if (data.mode === "landed") {
+        data.mode = "takeoff";
+        data.modeTimer = 0;
+        data.spoolTimer = 1.6;
+        data.departStarted = false;
+        data.departStage = 0;
+        data.rotorTarget = HELI_ROTOR_FLY;
+        data.demoReturn = true;
+        return true;
+    }
+
+    data.mode = "approach";
+    data.modeTimer = 0;
+    data.approachStage = 0;
+    data.patrolIndex = 0;
+    data.rotorTarget = HELI_ROTOR_FLY;
+    data.demoReturn = false;
     return true;
 }
 
@@ -596,6 +680,11 @@ function getKit() {
                 color: 0xff2a2a,
                 emissive: 0xff0000,
                 emissiveIntensity: 1.6
+            }),
+            padLight: new THREE.MeshLambertMaterial({
+                color: 0xe6b325,
+                emissive: 0xe69000,
+                emissiveIntensity: 0.7
             })
         }
     };
@@ -2451,6 +2540,292 @@ function createFences() {
     return root;
 }
 
+function createHeliPad() {
+    const { geo, mat } = getKit();
+    const visual = new THREE.Group();
+    visual.name = "heliPadVisual";
+
+    addPart(visual, geo.cylLow, mat.steelDark, 0, 0.01, 0, 0.50, 0.02, 0.50);
+    addPart(visual, geo.cylLow, mat.yellow, 0, 0.014, 0, 0.50, 0.006, 0.50);
+    addPart(visual, geo.cylLow, mat.steelDark, 0, 0.018, 0, 0.44, 0.008, 0.44);
+    addPart(visual, geo.box, mat.yellow, -0.14, 0.026, 0, 0.06, 0.012, 0.32);
+    addPart(visual, geo.box, mat.yellow, 0.14, 0.026, 0, 0.06, 0.012, 0.32);
+    addPart(visual, geo.box, mat.yellow, 0, 0.026, 0, 0.22, 0.012, 0.07);
+    addPart(visual, geo.box, mat.suitDark, 0, 0.022, -0.42, 0.16, 0.01, 0.04);
+    addBrandMark(visual, 0, 0.03, -0.40, 1.1);
+
+    const lights = [
+        [-0.38, 0.38], [0.38, 0.38], [-0.38, -0.38], [0.38, -0.38]
+    ];
+    heliPadLightMat = mat.padLight;
+    lights.forEach(([x, z]) => {
+        addPart(visual, geo.sphereTiny, mat.padLight, x, 0.03, z, 0.03, 0.03, 0.03);
+        addPart(visual, geo.cylLow, mat.steelDark, x, 0.016, z, 0.018, 0.02, 0.018);
+    });
+
+    placeYUpByFootprint(visual, HELI_PAD_SIZE);
+    const root = createPlacedGroup(visual, HELI_PAD_CENTER, 0);
+    root.name = "heliPad";
+    return root;
+}
+
+function createHelicopterMesh() {
+    const { geo, mat } = getKit();
+    const heli = new THREE.Group();
+    heli.name = "helicopterMesh";
+
+    addPart(heli, geo.box, mat.steelDark, 0, 0.055, 0.02, 0.09, 0.07, 0.20);
+    addPart(heli, geo.box, mat.yellow, 0, 0.055, 0.02, 0.094, 0.016, 0.12);
+    addPart(heli, geo.box, mat.panelScreen, 0, 0.062, 0.12, 0.08, 0.055, 0.08);
+    addPart(heli, geo.box, mat.steelLight, 0, 0.08, 0.13, 0.084, 0.012, 0.06);
+    addPart(heli, geo.cylLow, mat.steel, 0, 0.055, -0.18, 0.018, 0.22, 0.018, Math.PI / 2, 0, 0);
+    addPart(heli, geo.box, mat.steelDark, 0, 0.07, -0.30, 0.02, 0.05, 0.06);
+    addPart(heli, geo.box, mat.yellow, 0.046, 0.058, 0.00, 0.01, 0.03, 0.08);
+    addBrandMark(heli, 0.048, 0.07, 0.04, 0.9, Math.PI / 2);
+
+    addPart(heli, geo.box, mat.steelDark, -0.045, 0.012, 0.02, 0.012, 0.012, 0.22);
+    addPart(heli, geo.box, mat.steelDark, 0.045, 0.012, 0.02, 0.012, 0.012, 0.22);
+    addPart(heli, geo.cylLow, mat.steelLight, -0.045, 0.03, 0.06, 0.008, 0.04, 0.008);
+    addPart(heli, geo.cylLow, mat.steelLight, 0.045, 0.03, 0.06, 0.008, 0.04, 0.008);
+    addPart(heli, geo.cylLow, mat.steelLight, -0.045, 0.03, -0.04, 0.008, 0.04, 0.008);
+    addPart(heli, geo.cylLow, mat.steelLight, 0.045, 0.03, -0.04, 0.008, 0.04, 0.008);
+
+    addPart(heli, geo.cylLow, mat.steelDark, 0, 0.10, 0.02, 0.012, 0.05, 0.012);
+    const mainRotor = new THREE.Group();
+    mainRotor.name = "mainRotor";
+    mainRotor.position.set(0, 0.128, 0.02);
+    addPart(mainRotor, geo.box, mat.suitDark, 0, 0, 0, 0.42, 0.008, 0.03);
+    addPart(mainRotor, geo.box, mat.suitDark, 0, 0, 0, 0.03, 0.008, 0.42);
+    addPart(mainRotor, geo.cylLow, mat.yellow, 0, 0.006, 0, 0.02, 0.01, 0.02);
+    heli.add(mainRotor);
+
+    const tailRotor = new THREE.Group();
+    tailRotor.name = "tailRotor";
+    tailRotor.position.set(0.03, 0.075, -0.32);
+    addPart(tailRotor, geo.box, mat.suitDark, 0, 0, 0, 0.008, 0.09, 0.018);
+    addPart(tailRotor, geo.box, mat.suitDark, 0, 0, 0, 0.008, 0.018, 0.09);
+    heli.add(tailRotor);
+
+    heli.userData.mainRotor = mainRotor;
+    heli.userData.tailRotor = tailRotor;
+    return heli;
+}
+
+function createHelicopter() {
+    if (helicopterRoot) {
+        return helicopterRoot;
+    }
+
+    const visual = createHelicopterMesh();
+    placeYUpByHeight(visual, HELI_HEIGHT);
+    const start = HELI_FLIGHT_POINTS.far;
+    helicopterRoot = createPlacedGroup(visual, start, getFacingYaw(start, HELI_FLIGHT_POINTS.wait));
+    helicopterRoot.name = "helicopter";
+    helicopterRoot.userData.parts = visual.userData;
+    helicopterRoot.userData.mode = "flying";
+    helicopterRoot.userData.modeTimer = 18 + createRng(91)() * 16;
+    helicopterRoot.userData.spoolTimer = 0;
+    helicopterRoot.userData.patrolIndex = 0;
+    helicopterRoot.userData.approachStage = 0;
+    helicopterRoot.userData.yaw = helicopterRoot.rotation.z;
+    helicopterRoot.userData.rotorSpeed = HELI_ROTOR_FLY;
+    helicopterRoot.userData.rotorTarget = HELI_ROTOR_FLY;
+    helicopterRoot.userData.rng = createRng(91);
+    helicopterRoot.userData.demoReturn = false;
+    helicopterRoot.userData.departStarted = false;
+    helicopterRoot.userData.departStage = 0;
+    markInteractive(
+        helicopterRoot,
+        "helicopter",
+        "Вертолёт",
+        "Воздушный транспорт используется для доставки людей и грузов на удалённые производственные площадки."
+    );
+    return helicopterRoot;
+}
+
+function getHeliPoint(key) {
+    const point = HELI_FLIGHT_POINTS[key] || HELI_FLIGHT_POINTS.far;
+    return new THREE.Vector3(point.x, point.y, point.z);
+}
+
+function moveHeliToward(heli, target, speed, delta, yawFollow) {
+    const dx = target.x - heli.position.x;
+    const dy = target.y - heli.position.y;
+    const dz = target.z - heli.position.z;
+    const dist = Math.hypot(dx, dy, dz) || 0.0001;
+    const step = speed * delta;
+
+    if (dist <= step || dist < 0.01) {
+        heli.position.copy(target);
+        return true;
+    }
+
+    heli.position.x += (dx / dist) * step;
+    heli.position.y += (dy / dist) * step;
+    heli.position.z += (dz / dist) * step;
+
+    if (yawFollow && Math.hypot(dx, dy) > 0.006) {
+        const yaw = getFacingYaw(heli.position, target);
+        heli.userData.yaw = lerpAngle(heli.userData.yaw ?? heli.rotation.z, yaw, 2.1 * delta);
+        heli.rotation.z = heli.userData.yaw;
+    }
+
+    return false;
+}
+
+function pickNextPatrolKey(data) {
+    const next = Math.floor(data.rng() * HELI_PATROL_KEYS.length);
+    if (HELI_PATROL_KEYS[next] === HELI_PATROL_KEYS[data.patrolIndex] && HELI_PATROL_KEYS.length > 1) {
+        return (next + 1) % HELI_PATROL_KEYS.length;
+    }
+    return next;
+}
+
+function updateHelicopter(delta) {
+    if (!helicopterRoot) {
+        return;
+    }
+
+    const data = helicopterRoot.userData;
+    const visual = helicopterRoot.children[0];
+    const mainRotor = visual && visual.userData.mainRotor;
+    const tailRotor = visual && visual.userData.tailRotor;
+
+    data.rotorSpeed += (data.rotorTarget - data.rotorSpeed) * Math.min(1, delta * 1.4);
+    if (mainRotor) {
+        mainRotor.rotation.y += data.rotorSpeed * delta;
+    }
+    if (tailRotor) {
+        tailRotor.rotation.x += data.rotorSpeed * 1.8 * delta;
+    }
+
+    if (data.mode === "flying") {
+        data.rotorTarget = HELI_ROTOR_FLY;
+        const key = HELI_PATROL_KEYS[data.patrolIndex];
+        const arrived = moveHeliToward(helicopterRoot, getHeliPoint(key), HELI_FLY_SPEED, delta, true);
+        if (arrived) {
+            data.patrolIndex = pickNextPatrolKey(data);
+        }
+        data.modeTimer -= delta;
+        if (data.modeTimer <= 0 || data.demoReturn) {
+            data.mode = "approach";
+            data.approachStage = 0;
+            data.modeTimer = 0;
+            data.demoReturn = false;
+        }
+        return;
+    }
+
+    if (data.mode === "approach") {
+        data.rotorTarget = HELI_ROTOR_FLY;
+        const key = HELI_APPROACH_KEYS[Math.min(data.approachStage, HELI_APPROACH_KEYS.length - 1)];
+        const arrived = moveHeliToward(helicopterRoot, getHeliPoint(key), HELI_FLY_SPEED, delta, true);
+        if (arrived) {
+            data.approachStage += 1;
+            if (data.approachStage >= HELI_APPROACH_KEYS.length) {
+                data.mode = "landing";
+                data.rotorTarget = HELI_ROTOR_SLOW;
+            }
+        }
+        return;
+    }
+
+    if (data.mode === "landing") {
+        data.rotorTarget = HELI_ROTOR_SLOW;
+        const landTarget = new THREE.Vector3(HELI_PAD_CENTER.x, HELI_PAD_CENTER.y, HELI_LANDED_Z);
+        const landed = moveHeliToward(helicopterRoot, landTarget, HELI_LAND_SPEED, delta, false);
+        if (landed) {
+            data.mode = "landed";
+            data.modeTimer = 12 + data.rng() * 8;
+            data.rotorTarget = HELI_ROTOR_LANDED;
+        }
+        return;
+    }
+
+    if (data.mode === "landed") {
+        data.rotorTarget = HELI_ROTOR_LANDED;
+        data.modeTimer -= delta;
+        if (data.modeTimer <= 0) {
+            data.mode = "takeoff";
+            data.spoolTimer = 1.8;
+            data.departStarted = false;
+            data.departStage = 0;
+            data.rotorTarget = HELI_ROTOR_FLY;
+        }
+        return;
+    }
+
+    if (data.mode === "takeoff") {
+        data.rotorTarget = HELI_ROTOR_FLY;
+        if (data.spoolTimer > 0) {
+            data.spoolTimer -= delta;
+            return;
+        }
+
+        if (!data.departStarted) {
+            const hoverDone = moveHeliToward(helicopterRoot, getHeliPoint("hover"), HELI_LAND_SPEED, delta, false);
+            if (hoverDone) {
+                data.departStarted = true;
+                data.departStage = 0;
+            }
+            return;
+        }
+
+        const key = HELI_DEPART_KEYS[Math.min(data.departStage, HELI_DEPART_KEYS.length - 1)];
+        const target = getHeliPoint(key);
+        target.z = HELI_CRUISE_Z;
+        const departed = moveHeliToward(helicopterRoot, target, HELI_FLY_SPEED, delta, true);
+        if (departed) {
+            data.departStage += 1;
+            if (data.departStage >= HELI_DEPART_KEYS.length) {
+                data.mode = "flying";
+                data.modeTimer = 22 + data.rng() * 16;
+                data.patrolIndex = HELI_PATROL_KEYS.indexOf("west");
+            }
+        }
+    }
+}
+
+function createServiceRoad() {
+    const { geo, mat } = getKit();
+    const visual = new THREE.Group();
+    addPart(visual, geo.box, mat.steelDark, 0, 0.004, 0, 1.0, 0.008, 0.16);
+    addPart(visual, geo.box, mat.yellow, 0, 0.008, 0.07, 1.0, 0.003, 0.012);
+    addPart(visual, geo.box, mat.yellow, 0, 0.008, -0.07, 1.0, 0.003, 0.012);
+    placeYUpByFootprint(visual, 0.42);
+    const root = createPlacedGroup(visual, { x: -0.22, y: 0.08, z: 0 }, 0);
+    root.name = "serviceRoad";
+    return root;
+}
+
+function createTechSign(kind) {
+    const { geo, mat } = getKit();
+    const visual = new THREE.Group();
+    addPart(visual, geo.cylLow, mat.steelDark, 0, 0.03, 0, 0.01, 0.06, 0.01);
+    addPart(visual, geo.box, mat.steelDark, 0, 0.08, 0.006, 0.12, 0.05, 0.012);
+    addPart(visual, geo.box, mat.yellow, 0, 0.102, 0.01, 0.12, 0.006, 0.004);
+    addPart(visual, geo.box, mat.yellow, 0, 0.058, 0.01, 0.12, 0.006, 0.004);
+    addBrandMark(visual, -0.038, 0.082, 0.014, 0.7);
+    if (kind === "vankor") {
+        addPart(visual, geo.box, mat.yellow, 0.018, 0.088, 0.012, 0.046, 0.006, 0.003);
+        addPart(visual, geo.box, mat.reflect, 0.016, 0.076, 0.012, 0.04, 0.005, 0.003);
+        addPart(visual, geo.box, mat.yellow, 0.014, 0.066, 0.012, 0.034, 0.004, 0.003);
+    } else {
+        addPart(visual, geo.box, mat.yellow, 0.016, 0.086, 0.012, 0.028, 0.014, 0.003);
+        addPart(visual, geo.box, mat.reflect, 0.032, 0.07, 0.012, 0.012, 0.016, 0.003);
+    }
+    placeYUpByHeight(visual, 0.055);
+    return visual;
+}
+
+function createSiteSigns() {
+    const root = new THREE.Group();
+    root.name = "siteSigns";
+    root.add(createPlacedGroup(createTechSign("vankor"), { x: -0.10, y: 0.42, z: 0 }, 0));
+    root.add(createPlacedGroup(createTechSign("uc"), { x: -0.48, y: 0.20, z: 0 }, Math.PI / 2));
+    return root;
+}
+
 export function createPineTree() {
     const { geo, mat } = getKit();
     const tree = new THREE.Group();
@@ -2470,6 +2845,16 @@ export function createSpruceTree() {
     addPart(tree, geo.cone, mat.pine, 0, 0.09, 0, 0.048, 0.08, 0.048);
     addPart(tree, geo.cone, mat.pineDark, 0, 0.15, 0, 0.034, 0.09, 0.034);
     addPart(tree, geo.cone, mat.pine, 0, 0.21, 0, 0.022, 0.08, 0.022);
+    return tree;
+}
+
+function createYoungTree() {
+    const { geo, mat } = getKit();
+    const tree = new THREE.Group();
+    tree.name = "youngTree";
+    addPart(tree, geo.cylLow, mat.bark, 0, 0.02, 0, 0.01, 0.04, 0.01);
+    addPart(tree, geo.cone, mat.pine, 0, 0.055, 0, 0.03, 0.055, 0.03);
+    addPart(tree, geo.cone, mat.pineDark, 0, 0.09, 0, 0.02, 0.05, 0.02);
     return tree;
 }
 
@@ -2519,8 +2904,15 @@ function createSnowDrift(variant = 0) {
     return drift;
 }
 
+function isInsideHeliZone(x, y) {
+    return x >= HELI_ZONE_BOUNDS.minX
+        && x <= HELI_ZONE_BOUNDS.maxX
+        && y >= HELI_ZONE_BOUNDS.minY
+        && y <= HELI_ZONE_BOUNDS.maxY;
+}
+
 function isSnowSpotFree(x, y) {
-    if (isPointInsideSceneObstacle({ x, y }, 0.05)) {
+    if (isInsideHeliZone(x, y) || isPointInsideSceneObstacle({ x, y }, 0.05)) {
         return false;
     }
 
@@ -2534,7 +2926,7 @@ function placeNatureItem(factory, position, height, yaw = 0) {
 }
 
 function isNatureSpotFree(x, y) {
-    return !isPointInsideSceneObstacle({ x, y }, 0.04);
+    return !isInsideHeliZone(x, y) && !isPointInsideSceneObstacle({ x, y }, 0.04);
 }
 
 function createProceduralNature() {
@@ -2549,13 +2941,17 @@ function createProceduralNature() {
         [-0.38, 0.32, 0.12], [-0.34, 0.34, 0.11], [-0.38, 0.26, 0.13], [-0.30, 0.34, 0.10],
         [-0.39, 0.14, 0.12], [-0.38, 0.04, 0.11], [-0.39, -0.18, 0.12],
         [-0.38, -0.32, 0.10], [-0.08, -0.34, 0.11], [0.14, -0.34, 0.12],
-        [0.36, -0.32, 0.11], [0.38, 0.06, 0.12]
+        [0.36, -0.32, 0.11], [0.38, 0.06, 0.12],
+        [-0.48, 0.34, 0.13], [-0.46, 0.24, 0.11], [-0.48, -0.06, 0.12],
+        [-0.46, -0.40, 0.11], [-0.22, -0.48, 0.12], [0.12, -0.50, 0.11]
     ];
     const spruceSpots = [
         [-0.24, 0.34, 0.13], [-0.16, 0.34, 0.11], [-0.04, 0.35, 0.12], [0.06, 0.34, 0.10],
         [-0.37, -0.08, 0.12], [-0.32, -0.34, 0.11], [0.04, -0.35, 0.10],
         [0.38, -0.24, 0.12], [0.38, -0.16, 0.11], [0.38, 0.16, 0.13],
-        [-0.39, -0.26, 0.11], [0.38, -0.08, 0.10]
+        [-0.39, -0.26, 0.11], [0.38, -0.08, 0.10],
+        [-0.48, 0.08, 0.12], [-0.44, 0.40, 0.13], [0.00, 0.42, 0.11],
+        [0.20, 0.42, 0.12], [-0.08, -0.50, 0.10], [0.24, -0.50, 0.11]
     ];
 
     pineSpots.forEach(([x, y, height], index) => {
@@ -2572,10 +2968,22 @@ function createProceduralNature() {
         natureRoot.add(placeNatureItem(createSpruceTree, { x, y, z: 0 }, height, index * 0.21));
     });
 
+    const youngSpots = [
+        [-0.44, 0.28, 0.07], [-0.42, 0.06, 0.065], [-0.44, -0.28, 0.07],
+        [-0.28, 0.38, 0.06], [0.10, 0.40, 0.065], [0.06, -0.48, 0.06]
+    ];
+    youngSpots.forEach(([x, y, height], index) => {
+        if (!isNatureSpotFree(x, y)) {
+            return;
+        }
+        natureRoot.add(placeNatureItem(createYoungTree, { x, y, z: 0 }, height, index * 0.7));
+    });
+
     const bushSpots = [
         [-0.34, 0.28], [-0.36, 0.18], [-0.35, 0.08], [-0.34, -0.30],
         [-0.14, 0.32], [0.00, 0.33], [0.12, -0.33], [0.34, -0.28],
-        [0.36, -0.12], [-0.26, 0.30]
+        [0.36, -0.12], [-0.26, 0.30],
+        [-0.46, 0.30], [-0.44, -0.36], [0.08, 0.40], [0.18, -0.48]
     ];
     bushSpots.forEach(([x, y], index) => {
         if (!isNatureSpotFree(x, y)) {
@@ -2585,7 +2993,8 @@ function createProceduralNature() {
     });
 
     const rockSpots = [
-        [-0.36, 0.22], [-0.30, 0.32], [0.10, -0.33], [0.34, -0.20], [-0.20, 0.33], [0.36, 0.02]
+        [-0.36, 0.22], [-0.30, 0.32], [0.10, -0.33], [0.34, -0.20], [-0.20, 0.33], [0.36, 0.02],
+        [-0.46, 0.18], [-0.12, -0.48], [0.22, 0.40]
     ];
     rockSpots.forEach(([x, y]) => {
         if (!isNatureSpotFree(x, y)) {
@@ -2595,7 +3004,8 @@ function createProceduralNature() {
     });
 
     const stumpSpots = [
-        [-0.33, 0.20], [-0.22, 0.32], [0.08, -0.33], [0.34, -0.14]
+        [-0.33, 0.20], [-0.22, 0.32], [0.08, -0.33], [0.34, -0.14],
+        [-0.44, 0.12], [-0.18, -0.46]
     ];
     stumpSpots.forEach(([x, y]) => {
         if (!isNatureSpotFree(x, y)) {
@@ -2612,7 +3022,11 @@ function createProceduralNature() {
         [-0.33, 0.26, 0.013, 1.9], [0.35, -0.18, 0.014, 0.9], [-0.39, 0.02, 0.016, 2.2],
         [0.38, 0.22, 0.015, 1.5], [-0.18, 0.32, 0.014, 0.55], [0.16, -0.34, 0.013, 2.6],
         [-0.28, 0.10, 0.015, 1.2], [0.00, -0.34, 0.016, 0.7], [-0.38, -0.22, 0.014, 2.0],
-        [0.18, 0.32, 0.013, 1.8]
+        [0.18, 0.32, 0.013, 1.8],
+        [-0.46, 0.32, 0.016, 0.5], [-0.48, 0.10, 0.015, 1.4], [-0.46, -0.32, 0.014, 2.2],
+        [-0.20, -0.48, 0.015, 0.3], [0.10, -0.48, 0.014, 1.1], [0.08, 0.40, 0.013, 2.5],
+        [-0.12, 0.40, 0.015, 0.8], [0.22, 0.40, 0.014, 1.6], [-0.30, 0.36, 0.013, 0.2],
+        [-0.42, -0.02, 0.015, 1.9], [0.18, -0.46, 0.014, 0.6], [-0.06, -0.46, 0.016, 2.4]
     ];
     smallDrifts.forEach(([x, y, height, yaw]) => {
         if (!isSnowSpotFree(x, y)) {
@@ -2623,7 +3037,8 @@ function createProceduralNature() {
 
     const largeDrifts = [
         [-0.38, 0.34, 0.032, 0.4], [-0.36, -0.34, 0.030, 1.6],
-        [0.36, -0.34, 0.034, 2.3], [0.38, 0.18, 0.028, 0.9]
+        [0.36, -0.34, 0.034, 2.3], [0.38, 0.18, 0.028, 0.9],
+        [-0.48, 0.36, 0.034, 1.1], [-0.18, -0.50, 0.030, 0.5], [0.12, 0.42, 0.028, 2.0]
     ];
     largeDrifts.forEach(([x, y, height, yaw]) => {
         if (!isSnowSpotFree(x, y)) {
@@ -2635,7 +3050,10 @@ function createProceduralNature() {
     const snowRolls = [
         [-0.39, 0.16, 0.015, 1.2], [-0.39, -0.20, 0.014, 1.05],
         [-0.16, 0.35, 0.016, 0.12], [0.38, -0.24, 0.015, 1.4],
-        [0.08, -0.35, 0.014, 0.08]
+        [0.08, -0.35, 0.014, 0.08],
+        [-0.22, 0.14, 0.013, 0.05], [-0.10, 0.14, 0.012, 0.08],
+        [-0.48, 0.00, 0.014, 1.15], [0.04, -0.48, 0.013, 0.1],
+        [0.28, -0.48, 0.014, 0.2]
     ];
     snowRolls.forEach(([x, y, height, yaw]) => {
         if (!isSnowSpotFree(x, y)) {
@@ -2689,15 +3107,26 @@ function createProceduralBirds() {
         const bird = createBird();
         bird.name = `bird${index + 1}`;
         bird.scale.setScalar(route.scale);
-        const start = route.points[0];
-        const next = route.points[1] || start;
+        const jitterX = ((index % 3) - 1) * 0.016;
+        const jitterY = (index % 2 === 0 ? 1 : -1) * 0.01;
+        const jitterZ = index * 0.004;
+        const points = route.points.map((point) => ({
+            x: point.x + jitterX,
+            y: point.y + jitterY,
+            z: point.z + jitterZ
+        }));
+        const localRoute = { ...route, points };
+        const start = points[0];
+        const next = points[1] || start;
         bird.position.set(start.x, start.y, Math.max(start.z, BIRD_MIN_Z));
         bird.rotation.z = getBirdFacingYaw(start, next);
-        bird.userData.route = route;
+        bird.userData.route = localRoute;
         bird.userData.segment = 0;
         bird.userData.dir = 1;
         bird.userData.t = 0;
         bird.userData.yaw = bird.rotation.z;
+        bird.userData.wobble = index * 1.37;
+        bird.userData.flapRate = 14 + index * 0.9;
         root.add(bird);
         birdInstances.push(bird);
     });
@@ -2711,7 +3140,7 @@ function updateBirds(delta, elapsedTime) {
     birdInstances.forEach((bird) => {
         const route = bird.userData.route;
         const points = route.points;
-        const flap = Math.sin(elapsedTime * 16 + route.delay) * 0.6;
+        const flap = Math.sin(elapsedTime * (bird.userData.flapRate || 16) + route.delay) * 0.6;
         bird.userData.wings.left.rotation.x = flap;
         bird.userData.wings.right.rotation.x = -flap;
 
@@ -2754,7 +3183,11 @@ function updateBirds(delta, elapsedTime) {
         bird.position.set(
             THREE.MathUtils.lerp(currentFrom.x, currentTo.x, t),
             THREE.MathUtils.lerp(currentFrom.y, currentTo.y, t),
-            Math.max(THREE.MathUtils.lerp(currentFrom.z, currentTo.z, t), BIRD_MIN_Z)
+            Math.max(
+                THREE.MathUtils.lerp(currentFrom.z, currentTo.z, t)
+                    + Math.sin(elapsedTime * 1.15 + (bird.userData.wobble || 0)) * 0.008,
+                BIRD_MIN_Z
+            )
         );
 
         const targetYaw = getBirdFacingYaw(currentFrom, currentTo);
@@ -2787,6 +3220,10 @@ export function createProceduralSite() {
         createPipes(),
         createContainers(),
         createFences(),
+        createServiceRoad(),
+        createHeliPad(),
+        createHelicopter(),
+        createSiteSigns(),
         createProceduralNature(),
         createProceduralBirds()
     );
@@ -2795,8 +3232,6 @@ export function createProceduralSite() {
 }
 
 export function updateSiteAnimation(elapsedTime, delta = 0.016) {
-    void delta;
-
     if (pumpjackBeam) {
         pumpjackBeam.rotation.z = Math.sin(elapsedTime * 1.15) * 0.38;
     }
@@ -2806,6 +3241,12 @@ export function updateSiteAnimation(elapsedTime, delta = 0.016) {
         rigWarningLight.mat.emissiveIntensity = on ? 1.85 : 0.06;
         rigWarningLight.light.intensity = on ? 0.42 : 0;
     }
+
+    if (heliPadLightMat) {
+        heliPadLightMat.emissiveIntensity = (elapsedTime % 1.6) < 0.8 ? 0.95 : 0.18;
+    }
+
+    updateHelicopter(delta);
 }
 
 export function updateProceduralScene(delta, elapsedTime, flags) {
