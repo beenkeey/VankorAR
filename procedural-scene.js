@@ -9,11 +9,49 @@ import * as THREE from "three";
 
 const BEAR_HEIGHT = 0.065;
 const WORKER_HEIGHT = 0.072;
-const PROCEDURAL_RIG_FOOTPRINT = 0.23;
-const RIG_POSITION = { x: 0.22, y: 0.24, z: 0 };
-const PUMPJACK_POSITION = { x: 0.32, y: -0.06, z: 0 };
-const TANKS_POSITION = { x: -0.22, y: -0.26, z: 0 };
-const CONTAINERS_POSITION = { x: -0.36, y: -0.08, z: 0 };
+const MARKER_ASPECT = 704 / 1472;
+
+export const SCENE_LAYOUT = {
+    markerAspect: MARKER_ASPECT,
+    extent: {
+        minX: -0.48,
+        maxX: 0.48,
+        minY: -MARKER_ASPECT * 0.5 + 0.016,
+        maxY: MARKER_ASPECT * 0.5 - 0.016
+    },
+    logoKeepout: { x: 0, y: -0.02, radiusX: 0.12, radiusY: 0.048 },
+    lakeKeepout: { x: -0.33, y: 0.01, radiusX: 0.09, radiusY: 0.055 },
+    rig: { x: -0.27, y: 0.125, z: 0 },
+    rigFootprint: 0.17,
+    pumpjack: { x: 0.30, y: -0.028, z: 0 },
+    pumpjackFootprint: 0.11,
+    tanks: { x: 0.27, y: 0.125, z: 0 },
+    tanksFootprint: 0.125,
+    containers: { x: -0.36, y: -0.12, z: 0 },
+    containersFootprint: 0.10,
+    helipad: { x: 0.395, y: -0.170, z: 0 },
+    helipadSize: 0.105,
+    helipadRadius: 0.058,
+    yard: { x: -0.08, y: 0.148, radiusX: 0.10, radiusY: 0.028 },
+    northCorridorY: 0.198,
+    eastCorridorX: 0.42,
+    road: { x: 0.00, y: 0.198, z: 0, length: 0.42 },
+    signs: [
+        { kind: "uc", x: -0.46, y: 0.205, yaw: 0 },
+        { kind: "vankor", x: 0.46, y: 0.205, yaw: 0 }
+    ],
+    bearZones: [
+        { name: "forest", x: -0.45, y: 0.12, radiusX: 0.05, radiusY: 0.055 },
+        { name: "road", x: -0.10, y: -0.175, radiusX: 0.14, radiusY: 0.038 },
+        { name: "snow", x: 0.08, y: -0.180, radiusX: 0.12, radiusY: 0.035 }
+    ]
+};
+
+const PROCEDURAL_RIG_FOOTPRINT = SCENE_LAYOUT.rigFootprint;
+const RIG_POSITION = SCENE_LAYOUT.rig;
+const PUMPJACK_POSITION = SCENE_LAYOUT.pumpjack;
+const TANKS_POSITION = SCENE_LAYOUT.tanks;
+const CONTAINERS_POSITION = SCENE_LAYOUT.containers;
 const RIG_BASE_SIZE = 0.50;
 const RIG_SCALE = PROCEDURAL_RIG_FOOTPRINT / RIG_BASE_SIZE;
 const PIPE_RADIUS = 0.0055;
@@ -48,39 +86,34 @@ const CHARACTER_RADIUS = 0.02;
 const _up = new THREE.Vector3(0, 1, 0);
 const _dir = new THREE.Vector3();
 
-export const SCENE_EXTENT = {
-    minX: -0.50,
-    maxX: 0.56,
-    minY: -0.52,
-    maxY: 0.44
-};
+export const SCENE_EXTENT = SCENE_LAYOUT.extent;
 
 export const BEAR_WANDER_BOUNDS = {
-    minX: -0.48,
-    maxX: 0.32,
-    minY: -0.48,
-    maxY: 0.40
+    minX: SCENE_LAYOUT.extent.minX + 0.04,
+    maxX: 0.22,
+    minY: SCENE_LAYOUT.extent.minY + 0.02,
+    maxY: SCENE_LAYOUT.extent.maxY - 0.02
 };
 
-export const HELI_PAD_CENTER = { x: 0.42, y: -0.38, z: 0 };
-export const HELI_PAD_SIZE = 0.20;
-export const HELI_PAD_RADIUS = 0.12;
+export const HELI_PAD_CENTER = SCENE_LAYOUT.helipad;
+export const HELI_PAD_SIZE = SCENE_LAYOUT.helipadSize;
+export const HELI_PAD_RADIUS = SCENE_LAYOUT.helipadRadius;
 export const HELI_ZONE_BOUNDS = {
-    minX: HELI_PAD_CENTER.x - 0.14,
-    maxX: HELI_PAD_CENTER.x + 0.14,
-    minY: HELI_PAD_CENTER.y - 0.14,
-    maxY: HELI_PAD_CENTER.y + 0.14
+    minX: HELI_PAD_CENTER.x - 0.10,
+    maxX: HELI_PAD_CENTER.x + 0.10,
+    minY: HELI_PAD_CENTER.y - 0.10,
+    maxY: HELI_PAD_CENTER.y + 0.10
 };
-export const HELI_CRUISE_Z = 0.28;
-export const HELI_HOVER_Z = 0.16;
+export const HELI_CRUISE_Z = 0.22;
+export const HELI_HOVER_Z = 0.13;
 export const HELI_LANDED_Z = 0;
 export const HELI_FLIGHT_POINTS = {
-    far: { x: -0.48, y: 0.16, z: HELI_CRUISE_Z },
-    wait: { x: -0.12, y: 0.42, z: HELI_CRUISE_Z },
-    north: { x: 0.10, y: 0.42, z: HELI_CRUISE_Z },
-    west: { x: -0.48, y: -0.18, z: 0.26 },
-    south: { x: -0.14, y: -0.48, z: 0.26 },
-    approach: { x: 0.28, y: -0.48, z: 0.20 },
+    far: { x: -0.44, y: 0.04, z: HELI_CRUISE_Z },
+    wait: { x: -0.12, y: 0.205, z: HELI_CRUISE_Z },
+    north: { x: 0.10, y: 0.205, z: HELI_CRUISE_Z },
+    west: { x: -0.44, y: -0.08, z: 0.20 },
+    south: { x: 0.04, y: -0.205, z: 0.20 },
+    approach: { x: 0.22, y: -0.205, z: 0.16 },
     hover: { x: HELI_PAD_CENTER.x, y: HELI_PAD_CENTER.y, z: HELI_HOVER_Z }
 };
 const HELI_PATROL_KEYS = ["far", "wait", "north", "west"];
@@ -94,24 +127,24 @@ const HELI_ROTOR_LANDED = 0;
 const HELI_HEIGHT = 0.048;
 
 export const SCENE_OBSTACLES = [
-    { name: "rig", x: 0.22, y: 0.24, radiusX: 0.135, radiusY: 0.135 },
-    { name: "pumpjack", x: 0.32, y: -0.06, radiusX: 0.09, radiusY: 0.08 },
-    { name: "tanks", x: -0.22, y: -0.26, radiusX: 0.13, radiusY: 0.10 },
-    { name: "containers", x: -0.36, y: -0.08, radiusX: 0.09, radiusY: 0.08 },
-    { name: "pipesTanksPump", x: 0.058, y: -0.26, radiusX: 0.20, radiusY: 0.035 },
-    { name: "pipesPumpRise", x: 0.270, y: -0.16, radiusX: 0.035, radiusY: 0.11 },
-    { name: "pipesPumpEast", x: 0.38, y: 0.094, radiusX: 0.035, radiusY: 0.15 },
-    { name: "pipesRigProcess", x: 0.356, y: 0.231, radiusX: 0.04, radiusY: 0.03 },
-    { name: "pipesTanksHeader", x: -0.220, y: -0.230, radiusX: 0.08, radiusY: 0.03 },
-    { name: "pumpPanel", x: 0.355, y: -0.155, radiusX: 0.028, radiusY: 0.028 },
+    { name: "logoKeepout", x: SCENE_LAYOUT.logoKeepout.x, y: SCENE_LAYOUT.logoKeepout.y, radiusX: SCENE_LAYOUT.logoKeepout.radiusX, radiusY: SCENE_LAYOUT.logoKeepout.radiusY },
+    { name: "rig", x: RIG_POSITION.x, y: RIG_POSITION.y, radiusX: 0.10, radiusY: 0.10 },
+    { name: "pumpjack", x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y, radiusX: 0.07, radiusY: 0.06 },
+    { name: "tanks", x: TANKS_POSITION.x, y: TANKS_POSITION.y, radiusX: 0.09, radiusY: 0.07 },
+    { name: "containers", x: CONTAINERS_POSITION.x, y: CONTAINERS_POSITION.y, radiusX: 0.07, radiusY: 0.06 },
+    { name: "pipesNorth", x: 0.12, y: SCENE_LAYOUT.northCorridorY, radiusX: 0.32, radiusY: 0.022 },
+    { name: "lake", x: SCENE_LAYOUT.lakeKeepout.x, y: SCENE_LAYOUT.lakeKeepout.y, radiusX: SCENE_LAYOUT.lakeKeepout.radiusX, radiusY: SCENE_LAYOUT.lakeKeepout.radiusY },
+    { name: "pipesEast", x: SCENE_LAYOUT.eastCorridorX, y: 0.08, radiusX: 0.022, radiusY: 0.12 },
+    { name: "pipesTanksPump", x: 0.30, y: 0.04, radiusX: 0.03, radiusY: 0.08 },
+    { name: "pumpPanel", x: PUMPJACK_POSITION.x + 0.03, y: PUMPJACK_POSITION.y - 0.07, radiusX: 0.024, radiusY: 0.024 },
     { name: "helipad", x: HELI_PAD_CENTER.x, y: HELI_PAD_CENTER.y, radiusX: HELI_PAD_RADIUS, radiusY: HELI_PAD_RADIUS }
 ];
 
 export const WORK_ZONES = [
-    { name: "rig", x: 0.07, y: 0.16, radiusX: 0.06, radiusY: 0.06 },
-    { name: "tanks", x: -0.22, y: -0.12, radiusX: 0.07, radiusY: 0.05 },
-    { name: "pipes", x: 0.06, y: -0.16, radiusX: 0.07, radiusY: 0.05 },
-    { name: "yard", x: -0.08, y: 0.06, radiusX: 0.12, radiusY: 0.10 }
+    { name: "rig", x: RIG_POSITION.x - 0.02, y: RIG_POSITION.y - 0.07, radiusX: 0.05, radiusY: 0.035 },
+    { name: "tanks", x: TANKS_POSITION.x - 0.02, y: TANKS_POSITION.y - 0.055, radiusX: 0.05, radiusY: 0.03 },
+    { name: "pipes", x: 0.08, y: SCENE_LAYOUT.northCorridorY - 0.012, radiusX: 0.07, radiusY: 0.025 },
+    { name: "yard", x: SCENE_LAYOUT.yard.x, y: SCENE_LAYOUT.yard.y, radiusX: SCENE_LAYOUT.yard.radiusX, radiusY: SCENE_LAYOUT.yard.radiusY }
 ];
 
 function rigLocalToMap(lx, ly, lz) {
@@ -147,24 +180,32 @@ const RIG_TERMINAL_LOCAL = { x: 0.145, y: RIG_PLATFORM_POSITION.y + 0.03, z: 0.1
 const RIG_TERMINAL_STAND = rigLocalToMap(0.145, RIG_LADDER_Y1, 0.178);
 const RIG_LADDER_EXIT_POINT = rigLocalToMap(RIG_LADDER_X, 0.02, RIG_LADDER_Z0 + 0.18);
 const RIG_INSPECT_POINTS = [
-    new THREE.Vector3(0.22, 0.07, 0),
-    new THREE.Vector3(0.30, 0.10, 0),
-    new THREE.Vector3(0.10, 0.10, 0),
-    new THREE.Vector3(0.07, 0.18, 0)
+    new THREE.Vector3(RIG_POSITION.x, RIG_POSITION.y - 0.08, 0),
+    new THREE.Vector3(RIG_POSITION.x + 0.08, RIG_POSITION.y - 0.06, 0),
+    new THREE.Vector3(RIG_POSITION.x - 0.10, RIG_POSITION.y - 0.06, 0),
+    new THREE.Vector3(RIG_POSITION.x - 0.12, RIG_POSITION.y + 0.01, 0)
 ];
-const PUMPJACK_PANEL_POSITION = { x: 0.355, y: -0.155, z: 0 };
-const PUMPJACK_PANEL_STAND = new THREE.Vector3(0.348, -0.178, 0);
-const PUMPJACK_INSPECT = new THREE.Vector3(0.312, -0.168, 0);
+const PUMPJACK_PANEL_POSITION = {
+    x: PUMPJACK_POSITION.x + 0.03,
+    y: PUMPJACK_POSITION.y - 0.07,
+    z: 0
+};
+const PUMPJACK_PANEL_STAND = new THREE.Vector3(
+    PUMPJACK_PANEL_POSITION.x - 0.007,
+    PUMPJACK_PANEL_POSITION.y - 0.023,
+    0
+);
+const PUMPJACK_INSPECT = new THREE.Vector3(PUMPJACK_POSITION.x, PUMPJACK_POSITION.y - 0.08, 0);
 
-const PUMP_INLET_CONNECTION = { x: 0.270, y: -0.06 };
-const PUMP_OUTLET_CONNECTION = { x: 0.32, y: -0.043 };
-const RIG_PROCESS_CONNECTION = { x: 0.331, y: 0.231 };
+const PUMP_INLET_CONNECTION = { x: PUMPJACK_POSITION.x - 0.042, y: PUMPJACK_POSITION.y };
+const PUMP_OUTLET_CONNECTION = { x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y + 0.014 };
+const RIG_PROCESS_CONNECTION = { x: RIG_POSITION.x + 0.084, y: RIG_POSITION.y - 0.006 };
 
 const TANK_OUTLET_CONNECTIONS = {
-    east: { x: -0.139, y: -0.260, dir: { x: 1, y: 0 } },
-    northWest: { x: -0.271, y: -0.230, dir: { x: 0, y: 1 } },
-    northMid: { x: -0.220, y: -0.230, dir: { x: 0, y: 1 } },
-    northEast: { x: -0.169, y: -0.230, dir: { x: 0, y: 1 } }
+    east: { x: TANKS_POSITION.x + 0.056, y: TANKS_POSITION.y, dir: { x: 1, y: 0 } },
+    northWest: { x: TANKS_POSITION.x - 0.038, y: TANKS_POSITION.y + 0.022, dir: { x: 0, y: 1 } },
+    northMid: { x: TANKS_POSITION.x, y: TANKS_POSITION.y + 0.022, dir: { x: 0, y: 1 } },
+    northEast: { x: TANKS_POSITION.x + 0.038, y: TANKS_POSITION.y + 0.022, dir: { x: 0, y: 1 } }
 };
 
 const PIPE_STUBS = [
@@ -200,8 +241,9 @@ const PIPE_LINES = [
         name: "pumpToRig",
         points: [
             PUMP_OUTLET_CONNECTION,
-            { x: 0.38, y: PUMP_OUTLET_CONNECTION.y },
-            { x: 0.38, y: RIG_PROCESS_CONNECTION.y },
+            { x: SCENE_LAYOUT.eastCorridorX, y: PUMP_OUTLET_CONNECTION.y },
+            { x: SCENE_LAYOUT.eastCorridorX, y: SCENE_LAYOUT.northCorridorY },
+            { x: RIG_PROCESS_CONNECTION.x, y: SCENE_LAYOUT.northCorridorY },
             RIG_PROCESS_CONNECTION
         ]
     }
@@ -218,10 +260,10 @@ const BIRD_ROUTES = [
         turnSpeed: 3.2,
         pingPong: true,
         points: [
-            { x: -0.46, y: 0.30, z: 0.22 },
-            { x: -0.18, y: 0.38, z: 0.24 },
-            { x: 0.08, y: 0.40, z: 0.23 },
-            { x: 0.22, y: 0.42, z: 0.22 }
+            { x: -0.42, y: 0.18, z: 0.18 },
+            { x: -0.16, y: 0.20, z: 0.20 },
+            { x: 0.12, y: 0.20, z: 0.19 },
+            { x: 0.38, y: 0.16, z: 0.18 }
         ]
     },
     {
@@ -232,10 +274,10 @@ const BIRD_ROUTES = [
         turnSpeed: 2.6,
         pingPong: true,
         points: [
-            { x: -0.42, y: 0.20, z: 0.19 },
-            { x: -0.30, y: 0.32, z: 0.21 },
-            { x: -0.18, y: 0.24, z: 0.19 },
-            { x: -0.34, y: 0.10, z: 0.18 }
+            { x: -0.44, y: 0.10, z: 0.16 },
+            { x: -0.38, y: 0.18, z: 0.17 },
+            { x: -0.30, y: 0.12, z: 0.16 },
+            { x: -0.40, y: 0.02, z: 0.15 }
         ]
     },
     {
@@ -246,10 +288,10 @@ const BIRD_ROUTES = [
         turnSpeed: 3.8,
         pingPong: true,
         points: [
-            { x: -0.18, y: 0.02, z: 0.20 },
-            { x: -0.04, y: 0.10, z: 0.22 },
-            { x: 0.04, y: 0.00, z: 0.20 },
-            { x: -0.06, y: -0.10, z: 0.19 }
+            { x: -0.16, y: 0.16, z: 0.17 },
+            { x: -0.04, y: 0.18, z: 0.18 },
+            { x: 0.08, y: 0.16, z: 0.17 },
+            { x: -0.06, y: 0.14, z: 0.16 }
         ]
     },
     {
@@ -260,9 +302,9 @@ const BIRD_ROUTES = [
         turnSpeed: 2.4,
         pingPong: true,
         points: [
-            { x: 0.40, y: 0.02, z: 0.19 },
-            { x: 0.46, y: 0.12, z: 0.20 },
-            { x: 0.42, y: 0.22, z: 0.18 }
+            { x: 0.38, y: 0.02, z: 0.16 },
+            { x: 0.42, y: 0.08, z: 0.17 },
+            { x: 0.40, y: 0.14, z: 0.16 }
         ]
     },
     {
@@ -273,9 +315,9 @@ const BIRD_ROUTES = [
         turnSpeed: 3.0,
         pingPong: true,
         points: [
-            { x: -0.46, y: -0.12, z: 0.18 },
-            { x: -0.40, y: -0.32, z: 0.20 },
-            { x: -0.16, y: -0.44, z: 0.19 }
+            { x: -0.44, y: -0.04, z: 0.15 },
+            { x: -0.40, y: -0.14, z: 0.16 },
+            { x: -0.18, y: -0.18, z: 0.15 }
         ]
     },
     {
@@ -286,15 +328,15 @@ const BIRD_ROUTES = [
         turnSpeed: 2.8,
         pingPong: false,
         points: [
-            { x: -0.46, y: -0.06, z: 0.20 },
-            { x: -0.36, y: 0.18, z: 0.22 },
-            { x: -0.16, y: 0.38, z: 0.23 },
-            { x: 0.08, y: 0.42, z: 0.22 },
-            { x: 0.48, y: 0.16, z: 0.20 },
-            { x: 0.48, y: -0.12, z: 0.19 },
-            { x: 0.18, y: -0.48, z: 0.18 },
-            { x: -0.18, y: -0.46, z: 0.19 },
-            { x: -0.36, y: -0.20, z: 0.20 }
+            { x: -0.44, y: -0.06, z: 0.17 },
+            { x: -0.36, y: 0.12, z: 0.18 },
+            { x: -0.10, y: 0.20, z: 0.19 },
+            { x: 0.16, y: 0.20, z: 0.18 },
+            { x: 0.42, y: 0.10, z: 0.17 },
+            { x: 0.42, y: -0.08, z: 0.16 },
+            { x: 0.16, y: -0.20, z: 0.15 },
+            { x: -0.14, y: -0.20, z: 0.16 },
+            { x: -0.36, y: -0.10, z: 0.17 }
         ]
     }
 ];
@@ -302,7 +344,7 @@ const BIRD_ROUTES = [
 const BEAR_SPAWNS = [
     {
         name: "bearForest",
-        position: { x: -0.38, y: 0.30, z: 0 },
+        position: { x: SCENE_LAYOUT.bearZones[0].x, y: SCENE_LAYOUT.bearZones[0].y, z: 0 },
         speed: 0.042,
         turnSpeed: 1.55,
         phase: 0.35,
@@ -310,12 +352,12 @@ const BEAR_SPAWNS = [
         pause: 1.1,
         pauseMin: 0.9,
         pauseMax: 2.6,
-        zone: { x: -0.36, y: 0.30, radiusX: 0.12, radiusY: 0.10 },
+        zone: SCENE_LAYOUT.bearZones[0],
         zoneBias: 0.8
     },
     {
         name: "bearRoad",
-        position: { x: -0.32, y: 0.00, z: 0 },
+        position: { x: SCENE_LAYOUT.bearZones[1].x, y: SCENE_LAYOUT.bearZones[1].y, z: 0 },
         speed: 0.062,
         turnSpeed: 1.85,
         phase: 1.7,
@@ -323,12 +365,12 @@ const BEAR_SPAWNS = [
         pause: 0.5,
         pauseMin: 0.35,
         pauseMax: 1.4,
-        zone: { x: -0.32, y: 0.00, radiusX: 0.11, radiusY: 0.12 },
+        zone: SCENE_LAYOUT.bearZones[1],
         zoneBias: 0.74
     },
     {
         name: "bearSnow",
-        position: { x: 0.00, y: -0.40, z: 0 },
+        position: { x: SCENE_LAYOUT.bearZones[2].x, y: SCENE_LAYOUT.bearZones[2].y, z: 0 },
         speed: 0.054,
         turnSpeed: 1.7,
         phase: 2.9,
@@ -336,7 +378,7 @@ const BEAR_SPAWNS = [
         pause: 0.7,
         pauseMin: 0.5,
         pauseMax: 1.9,
-        zone: { x: 0.00, y: -0.40, radiusX: 0.14, radiusY: 0.08 },
+        zone: SCENE_LAYOUT.bearZones[2],
         zoneBias: 0.72
     }
 ];
@@ -348,7 +390,7 @@ const WORKER_SPAWNS = [
         workZone: "rig",
         stationed: false,
         climber: true,
-        position: { x: 0.22, y: 0.08, z: 0 },
+        position: { x: RIG_POSITION.x, y: RIG_POSITION.y - 0.08, z: 0 },
         yaw: 0,
         speed: 0.038,
         phase: 1.1,
@@ -356,9 +398,9 @@ const WORKER_SPAWNS = [
         workDuration: 4.8,
         idleDuration: 1.4,
         waypoints: [
-            new THREE.Vector3(0.22, 0.08, 0),
-            new THREE.Vector3(0.10, 0.10, 0),
-            new THREE.Vector3(0.30, 0.12, 0)
+            new THREE.Vector3(RIG_POSITION.x, RIG_POSITION.y - 0.08, 0),
+            new THREE.Vector3(RIG_POSITION.x - 0.10, RIG_POSITION.y - 0.06, 0),
+            new THREE.Vector3(RIG_POSITION.x + 0.08, RIG_POSITION.y - 0.06, 0)
         ]
     },
     {
@@ -366,15 +408,15 @@ const WORKER_SPAWNS = [
         role: "patrol",
         workZone: "yard",
         stationed: false,
-        position: { x: -0.08, y: 0.06, z: 0 },
+        position: { x: SCENE_LAYOUT.yard.x, y: SCENE_LAYOUT.yard.y, z: 0 },
         speed: 0.04,
         phase: 0.2,
         scale: 0.98,
         waypoints: [
-            new THREE.Vector3(-0.08, 0.06, 0),
-            new THREE.Vector3(-0.22, -0.12, 0),
-            new THREE.Vector3(0.07, 0.16, 0),
-            new THREE.Vector3(0.06, -0.16, 0)
+            new THREE.Vector3(SCENE_LAYOUT.yard.x, SCENE_LAYOUT.yard.y, 0),
+            new THREE.Vector3(TANKS_POSITION.x - 0.08, TANKS_POSITION.y - 0.05, 0),
+            new THREE.Vector3(RIG_POSITION.x + 0.12, RIG_POSITION.y - 0.04, 0),
+            new THREE.Vector3(0.10, SCENE_LAYOUT.northCorridorY - 0.045, 0)
         ]
     },
     {
@@ -382,7 +424,7 @@ const WORKER_SPAWNS = [
         role: "tankWork",
         workZone: "tanks",
         stationed: true,
-        position: { x: -0.22, y: -0.12, z: 0 },
+        position: { x: TANKS_POSITION.x - 0.02, y: TANKS_POSITION.y - 0.055, z: 0 },
         yaw: Math.PI,
         speed: 0,
         phase: 2.2,
@@ -396,7 +438,7 @@ const WORKER_SPAWNS = [
         role: "pipeWork",
         workZone: "pipes",
         stationed: true,
-        position: { x: 0.06, y: -0.16, z: 0 },
+        position: { x: 0.08, y: SCENE_LAYOUT.northCorridorY - 0.012, z: 0 },
         yaw: Math.PI * 0.5,
         speed: 0,
         phase: 0.8,
@@ -410,14 +452,14 @@ const WORKER_SPAWNS = [
         role: "fieldPatrol",
         workZone: "yard",
         stationed: false,
-        position: { x: -0.32, y: 0.18, z: 0 },
+        position: { x: -0.46, y: -0.10, z: 0 },
         speed: 0.036,
         phase: 2.8,
         scale: 1.05,
         waypoints: [
-            new THREE.Vector3(-0.32, 0.18, 0),
-            new THREE.Vector3(-0.18, 0.28, 0),
-            new THREE.Vector3(-0.28, 0.02, 0)
+            new THREE.Vector3(-0.46, -0.10, 0),
+            new THREE.Vector3(-0.44, -0.18, 0),
+            new THREE.Vector3(-0.46, 0.02, 0)
         ]
     },
     {
@@ -427,7 +469,7 @@ const WORKER_SPAWNS = [
         stationed: false,
         climber: false,
         pumpOperator: true,
-        position: { x: 0.34, y: -0.16, z: 0 },
+        position: { x: PUMPJACK_POSITION.x + 0.02, y: PUMPJACK_POSITION.y - 0.08, z: 0 },
         yaw: 0,
         speed: 0.034,
         phase: 1.6,
@@ -441,14 +483,14 @@ const WORKER_SPAWNS = [
         role: "northPatrol",
         workZone: "yard",
         stationed: false,
-        position: { x: 0.02, y: 0.28, z: 0 },
+        position: { x: -0.06, y: 0.148, z: 0 },
         speed: 0.033,
         phase: 0.55,
         scale: 0.96,
         waypoints: [
-            new THREE.Vector3(0.02, 0.28, 0),
-            new THREE.Vector3(-0.12, 0.22, 0),
-            new THREE.Vector3(0.08, 0.12, 0)
+            new THREE.Vector3(-0.06, 0.148, 0),
+            new THREE.Vector3(-0.18, 0.148, 0),
+            new THREE.Vector3(0.06, 0.148, 0)
         ]
     }
 ];
@@ -2298,7 +2340,7 @@ function createPumpjack() {
     addPart(visual, geo.cylLow, mat.steelDark, 0.0, 0.18, -0.09, 0.028, 0.01, 0.028, Math.PI / 2, 0, 0);
     addPart(visual, geo.box, mat.steelLight, 0.0, 0.18, -0.096, 0.028, 0.028, 0.008);
 
-    placeYUpByFootprint(visual, 0.13);
+    placeYUpByFootprint(visual, SCENE_LAYOUT.pumpjackFootprint);
     const root = createPlacedGroup(visual, PUMPJACK_POSITION, 0);
     root.name = "pumpjack";
     root.userData.beam = beam;
@@ -2335,7 +2377,7 @@ function createTanks() {
     addPart(visual, geo.box, mat.concrete, 0, 0.015, 0, 0.42, 0.03, 0.22);
     addBrandPlaque(visual, 0, 0.08, 0.12, 0, 0, 0, 0.75);
 
-    placeYUpByFootprint(visual, 0.18);
+    placeYUpByFootprint(visual, SCENE_LAYOUT.tanksFootprint);
     const root = createPlacedGroup(visual, TANKS_POSITION, 0);
     root.name = "tanks";
     markInteractive(
@@ -2497,7 +2539,7 @@ function createPipes() {
         );
     });
 
-    const valve = mapToLocal(0.06, -0.26, pipeCenterY);
+    const valve = mapToLocal(0.08, SCENE_LAYOUT.northCorridorY, pipeCenterY);
     addPart(visual, geo.box, mat.yellow, valve.x, valve.y + 0.01, valve.z, 0.014, 0.012, 0.02);
     addPart(visual, geo.cylLow, mat.steelDark, valve.x, valve.y + 0.018, valve.z, 0.005, 0.01, 0.005);
 
@@ -2514,7 +2556,7 @@ function createContainers() {
     addPart(visual, geo.box, mat.orange, -0.08, 0.10, 0, 0.16, 0.02, 0.08);
     addPart(visual, geo.box, mat.yellow, 0.09, 0.085, 0.01, 0.14, 0.015, 0.07);
 
-    placeYUpByFootprint(visual, 0.16);
+    placeYUpByFootprint(visual, SCENE_LAYOUT.containersFootprint);
     const root = createPlacedGroup(visual, CONTAINERS_POSITION, 0.1);
     root.name = "containers";
     return root;
@@ -2534,7 +2576,7 @@ function createFences() {
         addStrut(visual, geo.cylLow, mat.steelLight, x, 0.04, z, next[0], 0.04, next[1], 0.006);
     });
 
-    placeYUpByFootprint(visual, 0.20);
+    placeYUpByFootprint(visual, SCENE_LAYOUT.tanksFootprint * 1.15);
     const root = createPlacedGroup(visual, TANKS_POSITION);
     root.name = "fences";
     return root;
@@ -2792,8 +2834,12 @@ function createServiceRoad() {
     addPart(visual, geo.box, mat.steelDark, 0, 0.004, 0, 1.0, 0.008, 0.16);
     addPart(visual, geo.box, mat.yellow, 0, 0.008, 0.07, 1.0, 0.003, 0.012);
     addPart(visual, geo.box, mat.yellow, 0, 0.008, -0.07, 1.0, 0.003, 0.012);
-    placeYUpByFootprint(visual, 0.42);
-    const root = createPlacedGroup(visual, { x: -0.22, y: 0.08, z: 0 }, 0);
+    placeYUpByFootprint(visual, SCENE_LAYOUT.road.length);
+    const root = createPlacedGroup(visual, {
+        x: SCENE_LAYOUT.road.x,
+        y: SCENE_LAYOUT.road.y,
+        z: SCENE_LAYOUT.road.z
+    }, 0);
     root.name = "serviceRoad";
     return root;
 }
@@ -2821,8 +2867,9 @@ function createTechSign(kind) {
 function createSiteSigns() {
     const root = new THREE.Group();
     root.name = "siteSigns";
-    root.add(createPlacedGroup(createTechSign("vankor"), { x: -0.10, y: 0.42, z: 0 }, 0));
-    root.add(createPlacedGroup(createTechSign("uc"), { x: -0.48, y: 0.20, z: 0 }, Math.PI / 2));
+    SCENE_LAYOUT.signs.forEach((sign) => {
+        root.add(createPlacedGroup(createTechSign(sign.kind), { x: sign.x, y: sign.y, z: 0 }, sign.yaw));
+    });
     return root;
 }
 
@@ -2911,8 +2958,15 @@ function isInsideHeliZone(x, y) {
         && y <= HELI_ZONE_BOUNDS.maxY;
 }
 
+function isInsideLayoutKeepout(x, y, extra = 0) {
+    return isInsideObstacle(x, y, SCENE_LAYOUT.logoKeepout, extra)
+        || isInsideObstacle(x, y, SCENE_LAYOUT.lakeKeepout, extra);
+}
+
 function isSnowSpotFree(x, y) {
-    if (isInsideHeliZone(x, y) || isPointInsideSceneObstacle({ x, y }, 0.05)) {
+    if (isInsideLayoutKeepout(x, y, 0.02)
+        || isInsideHeliZone(x, y)
+        || isPointInsideSceneObstacle({ x, y }, 0.05)) {
         return false;
     }
 
@@ -2926,7 +2980,9 @@ function placeNatureItem(factory, position, height, yaw = 0) {
 }
 
 function isNatureSpotFree(x, y) {
-    return !isInsideHeliZone(x, y) && !isPointInsideSceneObstacle({ x, y }, 0.04);
+    return !isInsideLayoutKeepout(x, y, 0.02)
+        && !isInsideHeliZone(x, y)
+        && !isPointInsideSceneObstacle({ x, y }, 0.04);
 }
 
 function createProceduralNature() {
@@ -2938,20 +2994,16 @@ function createProceduralNature() {
     natureRoot.name = "natureRoot";
 
     const pineSpots = [
-        [-0.38, 0.32, 0.12], [-0.34, 0.34, 0.11], [-0.38, 0.26, 0.13], [-0.30, 0.34, 0.10],
-        [-0.39, 0.14, 0.12], [-0.38, 0.04, 0.11], [-0.39, -0.18, 0.12],
-        [-0.38, -0.32, 0.10], [-0.08, -0.34, 0.11], [0.14, -0.34, 0.12],
-        [0.36, -0.32, 0.11], [0.38, 0.06, 0.12],
-        [-0.48, 0.34, 0.13], [-0.46, 0.24, 0.11], [-0.48, -0.06, 0.12],
-        [-0.46, -0.40, 0.11], [-0.22, -0.48, 0.12], [0.12, -0.50, 0.11]
+        [-0.46, 0.20, 0.10], [-0.42, 0.215, 0.11], [0.42, 0.215, 0.11], [0.46, 0.18, 0.10],
+        [-0.47, 0.08, 0.10], [-0.47, -0.08, 0.11], [-0.46, -0.20, 0.10],
+        [0.47, 0.08, 0.10], [0.47, -0.04, 0.09],
+        [-0.28, -0.21, 0.10], [0.06, -0.21, 0.10], [0.20, -0.21, 0.09]
     ];
     const spruceSpots = [
-        [-0.24, 0.34, 0.13], [-0.16, 0.34, 0.11], [-0.04, 0.35, 0.12], [0.06, 0.34, 0.10],
-        [-0.37, -0.08, 0.12], [-0.32, -0.34, 0.11], [0.04, -0.35, 0.10],
-        [0.38, -0.24, 0.12], [0.38, -0.16, 0.11], [0.38, 0.16, 0.13],
-        [-0.39, -0.26, 0.11], [0.38, -0.08, 0.10],
-        [-0.48, 0.08, 0.12], [-0.44, 0.40, 0.13], [0.00, 0.42, 0.11],
-        [0.20, 0.42, 0.12], [-0.08, -0.50, 0.10], [0.24, -0.50, 0.11]
+        [-0.38, 0.215, 0.11], [0.38, 0.215, 0.11],
+        [-0.47, 0.00, 0.10], [-0.22, -0.21, 0.10], [0.00, -0.21, 0.09],
+        [0.46, -0.10, 0.10], [0.46, 0.14, 0.11],
+        [0.14, -0.21, 0.09]
     ];
 
     pineSpots.forEach(([x, y, height], index) => {
@@ -2969,8 +3021,8 @@ function createProceduralNature() {
     });
 
     const youngSpots = [
-        [-0.44, 0.28, 0.07], [-0.42, 0.06, 0.065], [-0.44, -0.28, 0.07],
-        [-0.28, 0.38, 0.06], [0.10, 0.40, 0.065], [0.06, -0.48, 0.06]
+        [-0.46, 0.16, 0.06], [-0.46, -0.14, 0.055], [0.46, 0.04, 0.06],
+        [-0.38, 0.215, 0.055], [0.38, 0.215, 0.05], [-0.08, -0.21, 0.055]
     ];
     youngSpots.forEach(([x, y, height], index) => {
         if (!isNatureSpotFree(x, y)) {
@@ -2980,10 +3032,9 @@ function createProceduralNature() {
     });
 
     const bushSpots = [
-        [-0.34, 0.28], [-0.36, 0.18], [-0.35, 0.08], [-0.34, -0.30],
-        [-0.14, 0.32], [0.00, 0.33], [0.12, -0.33], [0.34, -0.28],
-        [0.36, -0.12], [-0.26, 0.30],
-        [-0.46, 0.30], [-0.44, -0.36], [0.08, 0.40], [0.18, -0.48]
+        [-0.46, 0.18], [-0.47, 0.04], [-0.46, -0.16],
+        [0.46, -0.02], [0.20, -0.21],
+        [-0.18, -0.21], [0.38, 0.215]
     ];
     bushSpots.forEach(([x, y], index) => {
         if (!isNatureSpotFree(x, y)) {
@@ -2993,8 +3044,7 @@ function createProceduralNature() {
     });
 
     const rockSpots = [
-        [-0.36, 0.22], [-0.30, 0.32], [0.10, -0.33], [0.34, -0.20], [-0.20, 0.33], [0.36, 0.02],
-        [-0.46, 0.18], [-0.12, -0.48], [0.22, 0.40]
+        [-0.46, 0.14], [0.46, -0.08], [0.18, -0.21], [-0.08, -0.21]
     ];
     rockSpots.forEach(([x, y]) => {
         if (!isNatureSpotFree(x, y)) {
@@ -3004,8 +3054,7 @@ function createProceduralNature() {
     });
 
     const stumpSpots = [
-        [-0.33, 0.20], [-0.22, 0.32], [0.08, -0.33], [0.34, -0.14],
-        [-0.44, 0.12], [-0.18, -0.46]
+        [-0.46, 0.10], [0.18, -0.21], [0.46, 0.10]
     ];
     stumpSpots.forEach(([x, y]) => {
         if (!isNatureSpotFree(x, y)) {
@@ -3015,18 +3064,11 @@ function createProceduralNature() {
     });
 
     const smallDrifts = [
-        [-0.36, 0.29, 0.016, 0.4], [-0.31, 0.32, 0.014, 1.1], [-0.37, 0.20, 0.018, 0.2],
-        [-0.36, 0.10, 0.015, 2.4], [-0.37, -0.16, 0.017, 0.8], [-0.35, -0.30, 0.015, 1.7],
-        [-0.12, -0.33, 0.014, 0.3], [0.12, -0.33, 0.016, 2.1], [0.35, -0.29, 0.015, 1.3],
-        [0.36, 0.10, 0.014, 0.6], [-0.22, 0.33, 0.017, 2.8], [0.04, 0.33, 0.015, 0.15],
-        [-0.33, 0.26, 0.013, 1.9], [0.35, -0.18, 0.014, 0.9], [-0.39, 0.02, 0.016, 2.2],
-        [0.38, 0.22, 0.015, 1.5], [-0.18, 0.32, 0.014, 0.55], [0.16, -0.34, 0.013, 2.6],
-        [-0.28, 0.10, 0.015, 1.2], [0.00, -0.34, 0.016, 0.7], [-0.38, -0.22, 0.014, 2.0],
-        [0.18, 0.32, 0.013, 1.8],
-        [-0.46, 0.32, 0.016, 0.5], [-0.48, 0.10, 0.015, 1.4], [-0.46, -0.32, 0.014, 2.2],
-        [-0.20, -0.48, 0.015, 0.3], [0.10, -0.48, 0.014, 1.1], [0.08, 0.40, 0.013, 2.5],
-        [-0.12, 0.40, 0.015, 0.8], [0.22, 0.40, 0.014, 1.6], [-0.30, 0.36, 0.013, 0.2],
-        [-0.42, -0.02, 0.015, 1.9], [0.18, -0.46, 0.014, 0.6], [-0.06, -0.46, 0.016, 2.4]
+        [-0.46, 0.18, 0.014, 0.4], [-0.46, 0.06, 0.014, 0.2],
+        [-0.46, -0.12, 0.013, 2.4], [-0.40, -0.20, 0.014, 0.8],
+        [-0.18, -0.20, 0.013, 0.3], [0.06, -0.20, 0.014, 2.1], [0.18, -0.20, 0.013, 1.3],
+        [0.46, 0.10, 0.013, 0.6], [0.46, -0.02, 0.013, 1.5],
+        [-0.22, -0.20, 0.013, 0.7], [-0.08, -0.19, 0.013, 1.8]
     ];
     smallDrifts.forEach(([x, y, height, yaw]) => {
         if (!isSnowSpotFree(x, y)) {
@@ -3036,9 +3078,8 @@ function createProceduralNature() {
     });
 
     const largeDrifts = [
-        [-0.38, 0.34, 0.032, 0.4], [-0.36, -0.34, 0.030, 1.6],
-        [0.36, -0.34, 0.034, 2.3], [0.38, 0.18, 0.028, 0.9],
-        [-0.48, 0.36, 0.034, 1.1], [-0.18, -0.50, 0.030, 0.5], [0.12, 0.42, 0.028, 2.0]
+        [-0.46, 0.20, 0.026, 0.4], [-0.34, -0.20, 0.024, 1.6],
+        [0.18, -0.20, 0.026, 2.3], [0.46, 0.16, 0.024, 0.9]
     ];
     largeDrifts.forEach(([x, y, height, yaw]) => {
         if (!isSnowSpotFree(x, y)) {
@@ -3048,12 +3089,8 @@ function createProceduralNature() {
     });
 
     const snowRolls = [
-        [-0.39, 0.16, 0.015, 1.2], [-0.39, -0.20, 0.014, 1.05],
-        [-0.16, 0.35, 0.016, 0.12], [0.38, -0.24, 0.015, 1.4],
-        [0.08, -0.35, 0.014, 0.08],
-        [-0.22, 0.14, 0.013, 0.05], [-0.10, 0.14, 0.012, 0.08],
-        [-0.48, 0.00, 0.014, 1.15], [0.04, -0.48, 0.013, 0.1],
-        [0.28, -0.48, 0.014, 0.2]
+        [-0.46, 0.08, 0.012, 1.2], [-0.46, -0.16, 0.012, 1.05],
+        [-0.16, -0.20, 0.012, 0.05], [0.06, -0.20, 0.012, 0.1]
     ];
     snowRolls.forEach(([x, y, height, yaw]) => {
         if (!isSnowSpotFree(x, y)) {
