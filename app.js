@@ -15,12 +15,12 @@ import {
     createProceduralSite,
     createProceduralWorkers,
     updateProceduralScene
-} from "./procedural-scene.js?v=17";
+} from "./procedural-scene.js?v=18";
 import {
     bindSceneInteraction,
     unbindSceneInteraction,
     updateSceneInteraction
-} from "./interaction.js?v=17";
+} from "./interaction.js?v=18";
 
 const IMAGE_TARGET_SRC = "./assets/vankor-land.mind";
 const OIL_RIG_SRC = "./assets/models/oil-rig-optimized.glb";

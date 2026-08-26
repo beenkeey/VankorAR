@@ -23,20 +23,21 @@ export const SCENE_LAYOUT = {
     helipad: { x: -0.21, y: 0.032, z: 0 },
     helipadSize: 0.10,
     helipadRadius: 0.055,
-    tanks: { x: 0.13, y: -0.108, z: 0 },
+    tanks: { x: -0.18, y: -0.152, z: 0 },
     tanksFootprint: 0.115,
     pumpjack: { x: 0.27, y: -0.108, z: 0 },
     pumpjackFootprint: 0.10,
     rig: { x: 0.33, y: 0.128, z: 0 },
     rigFootprint: 0.16,
-    building: { x: 0.00, y: -0.018, z: 0 },
-    buildingFootprint: 0.11,
+    building: { x: 0.00, y: -0.100, z: 0 },
+    buildingFootprint: 0.154,
     buildingYaw: 0,
     containers: { x: -0.30, y: -0.155, z: 0 },
     containersFootprint: 0.08,
     yard: { x: 0.00, y: 0.038, radiusX: 0.12, radiusY: 0.022 },
     processCorridorY: 0.008,
     eastCorridorX: 0.445,
+    tanksPumpSouthY: -0.210,
     road: { x: 0.34, y: 0.008, z: 0, length: 0.22 },
     signs: [
         { kind: "uc", x: -0.46, y: -0.18, yaw: 0 },
@@ -44,7 +45,7 @@ export const SCENE_LAYOUT = {
     ],
     southProps: [
         { kind: "crate", x: -0.08, y: -0.188, yaw: 0.4 },
-        { kind: "generator", x: 0.22, y: -0.175, yaw: -0.2 },
+        { kind: "generator", x: 0.36, y: -0.175, yaw: -0.2 },
         { kind: "spotlight", x: 0.42, y: -0.10, yaw: 0.6 }
     ],
     bearZones: [
@@ -142,13 +143,15 @@ const HELI_ROTOR_LANDED = 0;
 const HELI_HEIGHT = 0.048;
 
 export const SCENE_OBSTACLES = [
-    { name: "building", x: BUILDING_POSITION.x, y: BUILDING_POSITION.y, radiusX: 0.062, radiusY: 0.052 },
+    { name: "building", x: BUILDING_POSITION.x, y: BUILDING_POSITION.y, radiusX: 0.078, radiusY: 0.066 },
     { name: "rig", x: RIG_POSITION.x, y: RIG_POSITION.y, radiusX: 0.095, radiusY: 0.095 },
     { name: "pumpjack", x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y, radiusX: 0.065, radiusY: 0.055 },
-    { name: "tanks", x: TANKS_POSITION.x, y: TANKS_POSITION.y, radiusX: 0.085, radiusY: 0.062 },
+    { name: "tanks", x: TANKS_POSITION.x, y: TANKS_POSITION.y, radiusX: 0.068, radiusY: 0.052 },
     { name: "containers", x: CONTAINERS_POSITION.x, y: CONTAINERS_POSITION.y, radiusX: 0.055, radiusY: 0.048 },
     { name: "lake", x: SCENE_LAYOUT.lakeKeepout.x, y: SCENE_LAYOUT.lakeKeepout.y, radiusX: SCENE_LAYOUT.lakeKeepout.radiusX, radiusY: SCENE_LAYOUT.lakeKeepout.radiusY },
-    { name: "pipesTanksPump", x: (TANKS_POSITION.x + PUMPJACK_POSITION.x) * 0.5, y: TANKS_POSITION.y, radiusX: 0.07, radiusY: 0.018 },
+    { name: "pipesTanksDrop", x: TANKS_POSITION.x + 0.057, y: (TANKS_POSITION.y + SCENE_LAYOUT.tanksPumpSouthY) * 0.5, radiusX: 0.012, radiusY: 0.034 },
+    { name: "pipesTanksSouth", x: 0.052, y: SCENE_LAYOUT.tanksPumpSouthY, radiusX: 0.188, radiusY: 0.012 },
+    { name: "pipesTanksRise", x: PUMPJACK_POSITION.x - 0.042, y: (SCENE_LAYOUT.tanksPumpSouthY + PUMPJACK_POSITION.y) * 0.5, radiusX: 0.012, radiusY: 0.054 },
     { name: "pipesSouth", x: 0.35, y: SCENE_LAYOUT.processCorridorY, radiusX: 0.12, radiusY: 0.016 },
     { name: "pipesEast", x: SCENE_LAYOUT.eastCorridorX, y: (SCENE_LAYOUT.processCorridorY + RIG_POSITION.y) * 0.5, radiusX: 0.016, radiusY: 0.07 },
     { name: "pipesRigIn", x: RIG_POSITION.x + 0.09, y: RIG_POSITION.y - 0.006, radiusX: 0.028, radiusY: 0.016 },
@@ -158,7 +161,7 @@ export const SCENE_OBSTACLES = [
 
 export const WORK_ZONES = [
     { name: "rig", x: RIG_POSITION.x - 0.04, y: RIG_POSITION.y - 0.075, radiusX: 0.05, radiusY: 0.032 },
-    { name: "tanks", x: TANKS_POSITION.x - 0.01, y: TANKS_POSITION.y - 0.058, radiusX: 0.048, radiusY: 0.028 },
+    { name: "tanks", x: TANKS_POSITION.x + 0.078, y: TANKS_POSITION.y + 0.008, radiusX: 0.032, radiusY: 0.028 },
     { name: "pipes", x: SCENE_LAYOUT.eastCorridorX - 0.04, y: SCENE_LAYOUT.processCorridorY + 0.02, radiusX: 0.05, radiusY: 0.022 },
     { name: "yard", x: SCENE_LAYOUT.yard.x, y: SCENE_LAYOUT.yard.y, radiusX: SCENE_LAYOUT.yard.radiusX, radiusY: SCENE_LAYOUT.yard.radiusY }
 ];
@@ -289,7 +292,8 @@ const PIPE_LINES = [
         height: TANK_NOZZLE_Z,
         points: [
             TANK_OUTLET_CONNECTIONS.east,
-            { x: PUMP_INLET_CONNECTION.x, y: TANK_OUTLET_CONNECTIONS.east.y },
+            { x: TANK_OUTLET_CONNECTIONS.east.x, y: SCENE_LAYOUT.tanksPumpSouthY },
+            { x: PUMP_INLET_CONNECTION.x, y: SCENE_LAYOUT.tanksPumpSouthY },
             PUMP_INLET_CONNECTION
         ]
     },
@@ -306,19 +310,20 @@ const PIPE_LINES = [
     }
 ];
 
+const BUILDING_HALF_Y = SCENE_LAYOUT.buildingFootprint * (0.20 / 0.24) * 0.5;
 const BUILDING_DOOR_APPROACH = new THREE.Vector3(
     BUILDING_POSITION.x,
-    BUILDING_POSITION.y - 0.078,
+    BUILDING_POSITION.y - BUILDING_HALF_Y - 0.022,
     0
 );
 const BUILDING_INSIDE = new THREE.Vector3(
     BUILDING_POSITION.x,
-    BUILDING_POSITION.y - 0.016,
+    BUILDING_POSITION.y - 0.018,
     0
 );
 const BUILDING_LEAVE_POINT = new THREE.Vector3(
-    BUILDING_POSITION.x + 0.06,
-    BUILDING_POSITION.y - 0.088,
+    BUILDING_POSITION.x + 0.07,
+    BUILDING_POSITION.y - BUILDING_HALF_Y - 0.028,
     0
 );
 
@@ -487,7 +492,7 @@ const WORKER_SPAWNS = [
         scale: 0.98,
         waypoints: [
             new THREE.Vector3(SCENE_LAYOUT.yard.x, SCENE_LAYOUT.yard.y, 0),
-            new THREE.Vector3(TANKS_POSITION.x - 0.06, TANKS_POSITION.y - 0.06, 0),
+            new THREE.Vector3(TANKS_POSITION.x + 0.08, TANKS_POSITION.y + 0.04, 0),
             new THREE.Vector3(BUILDING_POSITION.x + 0.08, BUILDING_POSITION.y - 0.08, 0),
             new THREE.Vector3(SCENE_LAYOUT.eastCorridorX - 0.06, SCENE_LAYOUT.processCorridorY - 0.02, 0)
         ]
@@ -497,7 +502,7 @@ const WORKER_SPAWNS = [
         role: "tankWork",
         workZone: "tanks",
         stationed: true,
-        position: { x: TANKS_POSITION.x - 0.02, y: TANKS_POSITION.y - 0.055, z: 0 },
+        position: { x: TANKS_POSITION.x + 0.078, y: TANKS_POSITION.y + 0.012, z: 0 },
         yaw: Math.PI,
         speed: 0,
         phase: 2.2,
@@ -3118,33 +3123,38 @@ function createOfficeBuildingMesh() {
     const visual = new THREE.Group();
     visual.name = "officeBuildingMesh";
 
-    addPart(visual, geo.box, mat.concrete, 0, 0.008, 0, 0.22, 0.016, 0.18);
-    addPart(visual, geo.box, mat.steelDark, 0, 0.056, 0, 0.20, 0.088, 0.16);
-    addPart(visual, geo.box, mat.steel, 0, 0.104, 0, 0.212, 0.012, 0.172);
-    addPart(visual, geo.box, mat.yellow, 0, 0.100, 0.084, 0.20, 0.006, 0.004);
-    addPart(visual, geo.box, mat.yellow, 0, 0.018, 0.084, 0.20, 0.006, 0.004);
-    addPart(visual, geo.box, mat.steelLight, 0, 0.082, 0.108, 0.11, 0.008, 0.055);
-    addPart(visual, geo.box, mat.steelDark, -0.052, 0.05, 0.108, 0.008, 0.05, 0.04);
-    addPart(visual, geo.box, mat.steelDark, 0.052, 0.05, 0.108, 0.008, 0.05, 0.04);
+    addPart(visual, geo.box, mat.concrete, 0, 0.008, 0, 0.24, 0.016, 0.20);
+    addPart(visual, geo.box, mat.steelDark, 0, 0.066, 0, 0.22, 0.100, 0.17);
+    addPart(visual, geo.box, mat.steel, 0, 0.122, 0, 0.232, 0.014, 0.182);
+    addPart(visual, geo.box, mat.yellow, 0, 0.116, 0.086, 0.22, 0.006, 0.004);
+    addPart(visual, geo.box, mat.yellow, 0, 0.020, 0.086, 0.22, 0.006, 0.004);
+    addPart(visual, geo.box, mat.steelLight, 0, 0.094, 0.100, 0.12, 0.010, 0.048);
+    addPart(visual, geo.box, mat.steelDark, -0.058, 0.055, 0.100, 0.010, 0.055, 0.038);
+    addPart(visual, geo.box, mat.steelDark, 0.058, 0.055, 0.100, 0.010, 0.055, 0.038);
+    addPart(visual, geo.box, mat.concrete, 0, 0.010, 0.098, 0.10, 0.008, 0.042);
 
-    addPart(visual, geo.box, mat.panelScreen, -0.054, 0.062, 0.082, 0.042, 0.028, 0.004);
-    addPart(visual, geo.box, mat.panelScreen, 0.054, 0.062, 0.082, 0.042, 0.028, 0.004);
-    addPart(visual, geo.box, mat.reflect, -0.054, 0.062, 0.084, 0.038, 0.004, 0.002);
-    addPart(visual, geo.box, mat.reflect, 0.054, 0.062, 0.084, 0.038, 0.004, 0.002);
+    addPart(visual, geo.box, mat.panelScreen, -0.062, 0.072, 0.086, 0.044, 0.032, 0.004);
+    addPart(visual, geo.box, mat.panelScreen, 0.062, 0.072, 0.086, 0.044, 0.032, 0.004);
+    addPart(visual, geo.box, mat.panelScreen, -0.062, 0.072, -0.086, 0.044, 0.032, 0.004);
+    addPart(visual, geo.box, mat.panelScreen, 0.062, 0.072, -0.086, 0.044, 0.032, 0.004);
+    addPart(visual, geo.box, mat.reflect, -0.062, 0.072, 0.088, 0.040, 0.005, 0.002);
+    addPart(visual, geo.box, mat.reflect, 0.062, 0.072, 0.088, 0.040, 0.005, 0.002);
 
-    addBrandPlaque(visual, 0, 0.090, 0.086, 0, 0, 0, 0.72);
-    addBrandMark(visual, -0.078, 0.072, 0.082, 0.9);
+    addBrandPlaque(visual, 0, 0.104, 0.088, 0, 0, 0, 0.85);
+    addBrandMark(visual, -0.086, 0.080, 0.086, 1.0);
 
-    addPart(visual, geo.cylLow, mat.steelLight, 0.062, 0.122, -0.03, 0.012, 0.022, 0.012);
-    addPart(visual, geo.box, mat.yellow, -0.07, 0.114, 0.03, 0.03, 0.008, 0.018);
-    addPart(visual, geo.box, mat.steelLight, 0.00, 0.118, -0.06, 0.04, 0.01, 0.03);
+    addPart(visual, geo.cylLow, mat.steelLight, 0.072, 0.140, -0.03, 0.014, 0.024, 0.014);
+    addPart(visual, geo.box, mat.yellow, -0.08, 0.132, 0.03, 0.032, 0.008, 0.020);
+    addPart(visual, geo.box, mat.steelLight, 0.00, 0.136, -0.06, 0.044, 0.012, 0.032);
+    addPart(visual, geo.box, mat.steelDark, 0.078, 0.028, 0.100, 0.028, 0.036, 0.028);
+    addPart(visual, geo.box, mat.yellow, 0.078, 0.048, 0.100, 0.028, 0.006, 0.028);
 
     const door = new THREE.Group();
     door.name = "buildingDoor";
-    door.position.set(-0.018, 0.040, 0.082);
-    addPart(door, geo.box, mat.steel, 0.018, 0, 0, 0.036, 0.072, 0.008);
-    addPart(door, geo.box, mat.yellow, 0.018, 0.028, 0.005, 0.036, 0.006, 0.002);
-    addPart(door, geo.box, mat.reflect, 0.030, -0.006, 0.005, 0.008, 0.01, 0.002);
+    door.position.set(-0.018, 0.046, 0.086);
+    addPart(door, geo.box, mat.steel, 0.018, 0, 0, 0.038, 0.078, 0.008);
+    addPart(door, geo.box, mat.yellow, 0.018, 0.030, 0.005, 0.038, 0.006, 0.002);
+    addPart(door, geo.box, mat.reflect, 0.032, -0.006, 0.005, 0.008, 0.012, 0.002);
     door.userData.targetOpen = 0;
     visual.add(door);
     buildingDoor = door;
