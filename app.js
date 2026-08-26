@@ -36,17 +36,32 @@ const USE_PROCEDURAL_BEAR = true;
 const USE_PROCEDURAL_WORKER = true;
 const USE_PROCEDURAL_RIG = true;
 
-const AR_STABILIZATION_DEBUG = true;
+const AR_STABILIZATION_DEBUG = false;
 const AR_STABILIZATION_TEST_MODE = false;
-const DEBUG_DISABLE_MINDAR_FILTER = false;
-const DEBUG_DISABLE_ROOT_SMOOTHING = false;
-const AR_SMOOTHING_SPEED_SLOW = 16;
-const AR_SMOOTHING_SPEED_FAST = 30;
-const AR_POSITION_DEADBAND = 0.0005;
-const AR_ROTATION_DEADBAND = 0.0012;
-const AR_POSITION_FAST_THRESHOLD = 0.01;
-const AR_ROTATION_FAST_THRESHOLD = 0.035;
-const AR_TARGET_HOLD_MS = 200;
+const USE_MINDAR_ONE_EURO = false;
+const USE_ROOT_SMOOTHING = true;
+
+const AR_POSITION_SMOOTHING = 5;
+const AR_POSITION_SMOOTHING_FAST = 16;
+const AR_ROTATION_SMOOTHING = 4;
+const AR_ROTATION_SMOOTHING_FAST = 12;
+const AR_SCALE_SMOOTHING = 2.5;
+const AR_SCALE_SMOOTHING_FAST = 8;
+
+const AR_POSITION_DEADBAND = 0.0035;
+const AR_ROTATION_DEADBAND = 0.004;
+const AR_SCALE_DEADBAND = 0.006;
+
+const AR_POSITION_FAST_THRESHOLD = 0.12;
+const AR_ROTATION_FAST_THRESHOLD = 0.35;
+const AR_SCALE_FAST_THRESHOLD = 0.08;
+
+const AR_MOTION_CONSISTENCY = 0.45;
+const AR_TARGET_HOLD_MS = 320;
+const AR_FOUND_FRAMES = 3;
+const AR_DEBUG_LOG_INTERVAL = 20;
+const AR_RECOVER_SNAP_POS = 0.22;
+const AR_RECOVER_SNAP_ROT = 0.55;
 
 const startScreen = document.querySelector("#start-screen");
 const startButton = document.querySelector("#start-button");
@@ -71,14 +86,30 @@ let isRunning = false;
 let arStabHasPose = false;
 let arStabLastSeenMs = 0;
 let arStabDebugFrame = 0;
+let arStabTrackState = "LOST";
+let arStabVisibleStreak = 0;
+let arStabHiddenStreak = 0;
+let arStabHasLastRaw = false;
+let arStabPosSpeed = 0;
+let arStabRotSpeed = 0;
+let arStabScaleSpeed = 0;
+let arStabConsistency = 0;
+let arStabScaleSign = 0;
+let arStabScaleStreak = 0;
+let arStabClass = "TARGET_LOST";
+let arStabPosAlpha = 0;
+let arStabRotAlpha = 0;
+let arStabScaleAlpha = 0;
 
 const _arRawPos = new THREE.Vector3();
 const _arRawQuat = new THREE.Quaternion();
 const _arRawScale = new THREE.Vector3();
-const _arDisplayScale = new THREE.Vector3(1, 1, 1);
+const _arWorkQuat = new THREE.Quaternion();
 const _arLastRawPos = new THREE.Vector3();
 const _arLastRawQuat = new THREE.Quaternion();
-let arStabHasLastRaw = false;
+const _arLastRawScale = new THREE.Vector3();
+const _arRawVel = new THREE.Vector3();
+const _arPrevVel = new THREE.Vector3();
 
 function showError(message) {
     errorMessage.textContent = message;
@@ -162,8 +193,8 @@ function createScene() {
         uiLoading: "yes",
         uiScanning: "yes",
         uiError: "yes",
-        filterMinCF: DEBUG_DISABLE_MINDAR_FILTER ? 1 : 0.00007,
-        filterBeta: DEBUG_DISABLE_MINDAR_FILTER ? 0 : 2000
+        filterMinCF: USE_MINDAR_ONE_EURO ? 0.001 : 1,
+        filterBeta: USE_MINDAR_ONE_EURO ? 0.001 : 0
     });
 
     arAnchor = mindarThree.addAnchor(0);
@@ -263,6 +294,20 @@ function createPlacedModelGroup(visual, position, yaw = 0) {
     return group;
 }
 
+function smoothingAlpha(speed, delta) {
+    return 1 - Math.exp(-speed * delta);
+}
+
+function alignQuaternion(_from, to) {
+    if (_from.dot(to) < 0) {
+        to.x = -to.x;
+        to.y = -to.y;
+        to.z = -to.z;
+        to.w = -to.w;
+    }
+    return to;
+}
+
 function ensureStabTestBadge() {
     let badge = document.querySelector("#stab-test-badge");
 
@@ -276,19 +321,57 @@ function ensureStabTestBadge() {
     if (!badge) {
         badge = document.createElement("div");
         badge.id = "stab-test-badge";
-        badge.textContent = "STABILIZATION TEST";
         document.body.appendChild(badge);
     }
 
     badge.hidden = false;
+    return badge;
+}
+
+function updateStabTestOverlay() {
+    if (!AR_STABILIZATION_TEST_MODE || !arDisplayRoot) {
+        return;
+    }
+
+    const badge = ensureStabTestBadge();
+    if (!badge) {
+        return;
+    }
+
+    const raw = `${_arRawPos.x.toFixed(3)}, ${_arRawPos.y.toFixed(3)}, ${_arRawPos.z.toFixed(3)}`;
+    const displayed = `${arDisplayRoot.position.x.toFixed(3)}, ${arDisplayRoot.position.y.toFixed(3)}, ${arDisplayRoot.position.z.toFixed(3)}`;
+    const posError = arDisplayRoot.position.distanceTo(_arRawPos);
+    const rotError = arDisplayRoot.quaternion.angleTo(_arRawQuat);
+
+    badge.textContent = [
+        `RAW ${raw}`,
+        `FILTERED ${USE_MINDAR_ONE_EURO ? "MindAR 1€" : "off"}`,
+        `DISPLAYED ${displayed}`,
+        `pos ${posError.toFixed(4)} rot ${rotError.toFixed(4)}`,
+        `vel ${arStabPosSpeed.toFixed(3)} ${arStabClass}`,
+        arStabTrackState
+    ].join("\n");
 }
 
 function resetArStabilization() {
     arStabHasPose = false;
     arStabLastSeenMs = 0;
     arStabDebugFrame = 0;
+    arStabTrackState = "LOST";
+    arStabVisibleStreak = 0;
+    arStabHiddenStreak = 0;
     arStabHasLastRaw = false;
-    _arDisplayScale.set(1, 1, 1);
+    arStabPosSpeed = 0;
+    arStabRotSpeed = 0;
+    arStabScaleSpeed = 0;
+    arStabConsistency = 0;
+    arStabScaleSign = 0;
+    arStabScaleStreak = 0;
+    arStabClass = "TARGET_LOST";
+    arStabPosAlpha = 0;
+    arStabRotAlpha = 0;
+    arStabScaleAlpha = 0;
+    _arPrevVel.set(0, 0, 0);
 
     if (arDisplayRoot) {
         arDisplayRoot.visible = false;
@@ -298,38 +381,164 @@ function resetArStabilization() {
     }
 }
 
-function logArStabilization(posError, rotError, alpha, rawDelta, visible) {
+function logArStabilization(posError, rotError, visible) {
     console.log("[AR stab]", {
+        class: arStabClass,
+        trackState: arStabTrackState,
         rawPosition: {
             x: Number(_arRawPos.x.toFixed(5)),
             y: Number(_arRawPos.y.toFixed(5)),
             z: Number(_arRawPos.z.toFixed(5))
         },
-        smoothedPosition: {
+        filteredPosition: USE_MINDAR_ONE_EURO ? "mindar-one-euro" : "passthrough",
+        displayedPosition: {
             x: Number(arDisplayRoot.position.x.toFixed(5)),
             y: Number(arDisplayRoot.position.y.toFixed(5)),
             z: Number(arDisplayRoot.position.z.toFixed(5))
         },
-        positionError: Number(posError.toFixed(6)),
-        rawDelta: Number(rawDelta.toFixed(6)),
-        rawQuaternion: {
+        rawRotation: {
             x: Number(_arRawQuat.x.toFixed(5)),
             y: Number(_arRawQuat.y.toFixed(5)),
             z: Number(_arRawQuat.z.toFixed(5)),
             w: Number(_arRawQuat.w.toFixed(5))
         },
-        smoothedQuaternion: {
+        displayedRotation: {
             x: Number(arDisplayRoot.quaternion.x.toFixed(5)),
             y: Number(arDisplayRoot.quaternion.y.toFixed(5)),
             z: Number(arDisplayRoot.quaternion.z.toFixed(5)),
             w: Number(arDisplayRoot.quaternion.w.toFixed(5))
         },
-        rotationError: Number(rotError.toFixed(6)),
-        alpha: Number(alpha.toFixed(4)),
-        arAnchorVisible: visible,
-        mindarFilterDisabled: DEBUG_DISABLE_MINDAR_FILTER,
-        rootSmoothingDisabled: DEBUG_DISABLE_ROOT_SMOOTHING
+        positionDelta: Number(posError.toFixed(6)),
+        rotationDelta: Number(rotError.toFixed(6)),
+        velocity: Number(arStabPosSpeed.toFixed(5)),
+        rotVelocity: Number(arStabRotSpeed.toFixed(5)),
+        scaleVelocity: Number(arStabScaleSpeed.toFixed(5)),
+        consistency: Number(arStabConsistency.toFixed(3)),
+        smoothingAlpha: {
+            position: Number(arStabPosAlpha.toFixed(4)),
+            rotation: Number(arStabRotAlpha.toFixed(4)),
+            scale: Number(arStabScaleAlpha.toFixed(4))
+        },
+        targetVisibility: visible,
+        mindarOneEuro: USE_MINDAR_ONE_EURO,
+        rootSmoothing: USE_ROOT_SMOOTHING
     });
+}
+
+function snapDisplayToRaw() {
+    arDisplayRoot.position.copy(_arRawPos);
+    arDisplayRoot.quaternion.copy(_arRawQuat);
+    arDisplayRoot.scale.copy(_arRawScale);
+    arStabHasPose = true;
+    arStabPosAlpha = 1;
+    arStabRotAlpha = 1;
+    arStabScaleAlpha = 1;
+}
+
+function updateRawMotion(delta) {
+    const safeDelta = Math.max(delta, 1 / 120);
+
+    if (!arStabHasLastRaw) {
+        _arLastRawPos.copy(_arRawPos);
+        _arLastRawQuat.copy(_arRawQuat);
+        _arLastRawScale.copy(_arRawScale);
+        arStabHasLastRaw = true;
+        return;
+    }
+
+    alignQuaternion(_arLastRawQuat, _arRawQuat);
+
+    _arRawVel.subVectors(_arRawPos, _arLastRawPos).divideScalar(safeDelta);
+    const instantPosSpeed = _arRawVel.length();
+    const instantRotSpeed = _arLastRawQuat.angleTo(_arRawQuat) / safeDelta;
+    const instantScaleSpeed = Math.abs(_arRawScale.x - _arLastRawScale.x) / safeDelta;
+    const velBlend = smoothingAlpha(10, safeDelta);
+
+    arStabPosSpeed += (instantPosSpeed - arStabPosSpeed) * velBlend;
+    arStabRotSpeed += (instantRotSpeed - arStabRotSpeed) * velBlend;
+    arStabScaleSpeed += (instantScaleSpeed - arStabScaleSpeed) * velBlend;
+
+    const prevSpeed = _arPrevVel.length();
+    if (prevSpeed > 1e-5 && instantPosSpeed > 1e-5) {
+        arStabConsistency = _arRawVel.dot(_arPrevVel) / (instantPosSpeed * prevSpeed);
+    } else {
+        arStabConsistency = 0;
+    }
+
+    const scaleSign = Math.sign(_arRawScale.x - _arLastRawScale.x);
+    if (scaleSign !== 0 && scaleSign === arStabScaleSign) {
+        arStabScaleStreak += 1;
+    } else {
+        arStabScaleStreak = scaleSign === 0 ? 0 : 1;
+        arStabScaleSign = scaleSign;
+    }
+
+    _arPrevVel.copy(_arRawVel);
+    _arLastRawPos.copy(_arRawPos);
+    _arLastRawQuat.copy(_arRawQuat);
+    _arLastRawScale.copy(_arRawScale);
+}
+
+function classifyArMotion() {
+    const realPosition = arStabPosSpeed > AR_POSITION_FAST_THRESHOLD
+        && arStabConsistency > AR_MOTION_CONSISTENCY;
+    const realRotation = arStabRotSpeed > AR_ROTATION_FAST_THRESHOLD
+        && arStabConsistency > 0.2;
+    const realScale = arStabScaleSpeed > AR_SCALE_FAST_THRESHOLD && arStabScaleStreak >= 4;
+
+    if (realPosition || realRotation || realScale) {
+        return "REAL_MOTION";
+    }
+
+    return "TRACKING_NOISE";
+}
+
+function applyRootSmoothing(delta, motionClass) {
+    const posError = arDisplayRoot.position.distanceTo(_arRawPos);
+    _arWorkQuat.copy(_arRawQuat);
+    alignQuaternion(arDisplayRoot.quaternion, _arWorkQuat);
+    const rotError = arDisplayRoot.quaternion.angleTo(_arWorkQuat);
+    const scaleError = Math.abs(arDisplayRoot.scale.x - _arRawScale.x);
+    const isReal = motionClass === "REAL_MOTION";
+
+    arStabPosAlpha = 0;
+    arStabRotAlpha = 0;
+    arStabScaleAlpha = 0;
+
+    if (!USE_ROOT_SMOOTHING) {
+        snapDisplayToRaw();
+        return { posError, rotError };
+    }
+
+    const followPos = isReal || posError > AR_POSITION_DEADBAND * 2.4;
+    const followRot = isReal || rotError > AR_ROTATION_DEADBAND * 2.4;
+    const followScale = isReal || scaleError > AR_SCALE_DEADBAND * 2.2;
+
+    if (followPos && (isReal || posError > AR_POSITION_DEADBAND)) {
+        arStabPosAlpha = smoothingAlpha(
+            isReal ? AR_POSITION_SMOOTHING_FAST : AR_POSITION_SMOOTHING,
+            delta
+        );
+        arDisplayRoot.position.lerp(_arRawPos, arStabPosAlpha);
+    }
+
+    if (followRot && (isReal || rotError > AR_ROTATION_DEADBAND)) {
+        arStabRotAlpha = smoothingAlpha(
+            isReal ? AR_ROTATION_SMOOTHING_FAST : AR_ROTATION_SMOOTHING,
+            delta
+        );
+        arDisplayRoot.quaternion.slerp(_arWorkQuat, arStabRotAlpha);
+    }
+
+    if (followScale && (isReal || scaleError > AR_SCALE_DEADBAND)) {
+        arStabScaleAlpha = smoothingAlpha(
+            isReal ? AR_SCALE_SMOOTHING_FAST : AR_SCALE_SMOOTHING,
+            delta
+        );
+        arDisplayRoot.scale.lerp(_arRawScale, arStabScaleAlpha);
+    }
+
+    return { posError, rotError };
 }
 
 function updateArStabilization(delta) {
@@ -343,66 +552,68 @@ function updateArStabilization(delta) {
 
     if (targetVisible) {
         arStabLastSeenMs = now;
+        arStabHiddenStreak = 0;
+        arStabVisibleStreak += 1;
         arAnchor.group.matrix.decompose(_arRawPos, _arRawQuat, _arRawScale);
+        updateRawMotion(delta);
+        arStabClass = classifyArMotion();
 
-        const rawDelta = arStabHasLastRaw ? _arRawPos.distanceTo(_arLastRawPos) : 0;
+        if (arStabTrackState === "LOST") {
+            arStabTrackState = "FOUND_PENDING";
+        }
 
-        if (!arStabHasPose || DEBUG_DISABLE_ROOT_SMOOTHING) {
-            arDisplayRoot.position.copy(_arRawPos);
-            arDisplayRoot.quaternion.copy(_arRawQuat);
-            arDisplayRoot.scale.copy(_arRawScale);
-            _arDisplayScale.copy(_arRawScale);
-            arStabHasPose = true;
-            arDisplayRoot.visible = true;
-            _arLastRawPos.copy(_arRawPos);
-            _arLastRawQuat.copy(_arRawQuat);
-            arStabHasLastRaw = true;
+        if (arStabTrackState === "LOST_PENDING") {
+            arStabTrackState = "TRACKING";
+            arStabClass = "TARGET_RECOVERED";
+        }
 
-            if (debugEnabled) {
-                arStabDebugFrame += 1;
-                if (arStabDebugFrame % 15 === 0) {
-                    logArStabilization(0, 0, 1, rawDelta, targetVisible);
-                }
+        if (arStabTrackState === "FOUND_PENDING" && arStabVisibleStreak >= AR_FOUND_FRAMES) {
+            arStabTrackState = "TRACKING";
+            arStabClass = "TARGET_RECOVERED";
+            if (!arStabHasPose
+                || arDisplayRoot.position.distanceTo(_arRawPos) > AR_RECOVER_SNAP_POS
+                || arDisplayRoot.quaternion.angleTo(_arRawQuat) > AR_RECOVER_SNAP_ROT) {
+                snapDisplayToRaw();
             }
-            return;
         }
 
-        if (_arRawScale.distanceToSquared(_arDisplayScale) > 1e-8) {
-            _arDisplayScale.copy(_arRawScale);
-            arDisplayRoot.scale.copy(_arRawScale);
+        if (arStabTrackState === "TRACKING") {
+            if (!arStabHasPose) {
+                snapDisplayToRaw();
+            } else {
+                applyRootSmoothing(delta, arStabClass === "TARGET_RECOVERED" ? "REAL_MOTION" : arStabClass);
+            }
+            arDisplayRoot.visible = true;
         }
-
-        const posError = arDisplayRoot.position.distanceTo(_arRawPos);
-        const rotError = arDisplayRoot.quaternion.angleTo(_arRawQuat);
-        let alpha = 0;
-
-        if (posError > AR_POSITION_DEADBAND || rotError > AR_ROTATION_DEADBAND) {
-            const speed = posError > AR_POSITION_FAST_THRESHOLD || rotError > AR_ROTATION_FAST_THRESHOLD
-                ? AR_SMOOTHING_SPEED_FAST
-                : AR_SMOOTHING_SPEED_SLOW;
-            alpha = 1 - Math.exp(-speed * delta);
-            arDisplayRoot.position.lerp(_arRawPos, alpha);
-            arDisplayRoot.quaternion.slerp(_arRawQuat, alpha);
-        }
-
-        arDisplayRoot.visible = true;
 
         if (debugEnabled) {
             arStabDebugFrame += 1;
-            if (arStabDebugFrame % 15 === 0) {
-                logArStabilization(posError, rotError, alpha, rawDelta, targetVisible);
+            if (arStabDebugFrame % AR_DEBUG_LOG_INTERVAL === 0) {
+                logArStabilization(
+                    arDisplayRoot.position.distanceTo(_arRawPos),
+                    arDisplayRoot.quaternion.angleTo(_arRawQuat),
+                    targetVisible
+                );
+                updateStabTestOverlay();
             }
         }
-
-        _arLastRawPos.copy(_arRawPos);
-        _arLastRawQuat.copy(_arRawQuat);
-        arStabHasLastRaw = true;
         return;
     }
 
-    if (arStabHasPose && now - arStabLastSeenMs < AR_TARGET_HOLD_MS) {
-        arDisplayRoot.visible = true;
-        return;
+    arStabVisibleStreak = 0;
+    arStabHiddenStreak += 1;
+    arStabClass = "TARGET_LOST";
+
+    if (arStabTrackState === "TRACKING" || arStabTrackState === "FOUND_PENDING") {
+        arStabTrackState = "LOST_PENDING";
+    }
+
+    if (arStabTrackState === "LOST_PENDING") {
+        if (now - arStabLastSeenMs < AR_TARGET_HOLD_MS) {
+            arDisplayRoot.visible = arStabHasPose;
+            return;
+        }
+        arStabTrackState = "LOST";
     }
 
     arDisplayRoot.visible = false;

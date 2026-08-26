@@ -137,12 +137,18 @@ body {
     top: 16px;
     right: 16px;
     z-index: 40;
-    padding: 6px 10px;
+    max-width: 280px;
+    padding: 8px 10px;
     border-radius: 6px;
-    background: rgba(180, 40, 40, 0.85);
+    background: rgba(18, 22, 26, 0.88);
     color: #fff;
-    font-size: 12px;
-    letter-spacing: 0.04em;
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.02em;
+    line-height: 1.35;
+    white-space: pre;
+    text-align: left;
+    pointer-events: none;
 }
 
 #info-card {
