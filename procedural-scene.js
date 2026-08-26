@@ -19,31 +19,37 @@ export const SCENE_LAYOUT = {
         minY: -MARKER_ASPECT * 0.5 + 0.016,
         maxY: MARKER_ASPECT * 0.5 - 0.016
     },
-    logoKeepout: { x: 0, y: -0.02, radiusX: 0.12, radiusY: 0.048 },
-    lakeKeepout: { x: -0.33, y: 0.01, radiusX: 0.09, radiusY: 0.055 },
-    rig: { x: -0.27, y: 0.125, z: 0 },
-    rigFootprint: 0.17,
-    pumpjack: { x: 0.30, y: -0.028, z: 0 },
-    pumpjackFootprint: 0.11,
-    tanks: { x: 0.27, y: 0.125, z: 0 },
-    tanksFootprint: 0.125,
-    containers: { x: -0.36, y: -0.12, z: 0 },
-    containersFootprint: 0.10,
-    helipad: { x: 0.395, y: -0.170, z: 0 },
-    helipadSize: 0.105,
-    helipadRadius: 0.058,
-    yard: { x: -0.08, y: 0.148, radiusX: 0.10, radiusY: 0.028 },
-    northCorridorY: 0.198,
-    eastCorridorX: 0.42,
-    road: { x: 0.00, y: 0.198, z: 0, length: 0.42 },
+    lakeKeepout: { x: -0.32, y: 0.13, radiusX: 0.10, radiusY: 0.068 },
+    helipad: { x: -0.21, y: 0.032, z: 0 },
+    helipadSize: 0.10,
+    helipadRadius: 0.055,
+    tanks: { x: -0.05, y: 0.158, z: 0 },
+    tanksFootprint: 0.115,
+    pumpjack: { x: 0.10, y: 0.150, z: 0 },
+    pumpjackFootprint: 0.10,
+    rig: { x: 0.33, y: 0.128, z: 0 },
+    rigFootprint: 0.16,
+    building: { x: 0.00, y: -0.018, z: 0 },
+    buildingFootprint: 0.11,
+    buildingYaw: 0,
+    containers: { x: -0.30, y: -0.155, z: 0 },
+    containersFootprint: 0.08,
+    yard: { x: 0.00, y: 0.038, radiusX: 0.12, radiusY: 0.022 },
+    processCorridorY: 0.070,
+    road: { x: 0.12, y: 0.070, z: 0, length: 0.38 },
     signs: [
-        { kind: "uc", x: -0.46, y: 0.205, yaw: 0 },
-        { kind: "vankor", x: 0.46, y: 0.205, yaw: 0 }
+        { kind: "uc", x: -0.46, y: -0.18, yaw: 0 },
+        { kind: "vankor", x: 0.44, y: -0.18, yaw: 0 }
+    ],
+    southProps: [
+        { kind: "crate", x: -0.08, y: -0.188, yaw: 0.4 },
+        { kind: "generator", x: 0.22, y: -0.175, yaw: -0.2 },
+        { kind: "spotlight", x: 0.42, y: -0.10, yaw: 0.6 }
     ],
     bearZones: [
-        { name: "forest", x: -0.45, y: 0.12, radiusX: 0.05, radiusY: 0.055 },
-        { name: "road", x: -0.10, y: -0.175, radiusX: 0.14, radiusY: 0.038 },
-        { name: "snow", x: 0.08, y: -0.180, radiusX: 0.12, radiusY: 0.035 }
+        { name: "westSnow", x: -0.18, y: -0.165, radiusX: 0.12, radiusY: 0.042 },
+        { name: "southRoad", x: 0.02, y: -0.178, radiusX: 0.10, radiusY: 0.036 },
+        { name: "eastSnow", x: 0.20, y: -0.165, radiusX: 0.10, radiusY: 0.040 }
     ]
 };
 
@@ -52,6 +58,7 @@ const RIG_POSITION = SCENE_LAYOUT.rig;
 const PUMPJACK_POSITION = SCENE_LAYOUT.pumpjack;
 const TANKS_POSITION = SCENE_LAYOUT.tanks;
 const CONTAINERS_POSITION = SCENE_LAYOUT.containers;
+const BUILDING_POSITION = SCENE_LAYOUT.building;
 const RIG_BASE_SIZE = 0.50;
 const RIG_SCALE = PROCEDURAL_RIG_FOOTPRINT / RIG_BASE_SIZE;
 const PIPE_RADIUS = 0.0055;
@@ -90,9 +97,9 @@ export const SCENE_EXTENT = SCENE_LAYOUT.extent;
 
 export const BEAR_WANDER_BOUNDS = {
     minX: SCENE_LAYOUT.extent.minX + 0.04,
-    maxX: 0.22,
+    maxX: 0.34,
     minY: SCENE_LAYOUT.extent.minY + 0.02,
-    maxY: SCENE_LAYOUT.extent.maxY - 0.02
+    maxY: -0.04
 };
 
 export const HELI_PAD_CENTER = SCENE_LAYOUT.helipad;
@@ -108,15 +115,15 @@ export const HELI_CRUISE_Z = 0.22;
 export const HELI_HOVER_Z = 0.13;
 export const HELI_LANDED_Z = 0;
 export const HELI_FLIGHT_POINTS = {
-    far: { x: -0.44, y: 0.04, z: HELI_CRUISE_Z },
-    wait: { x: -0.12, y: 0.205, z: HELI_CRUISE_Z },
-    north: { x: 0.10, y: 0.205, z: HELI_CRUISE_Z },
-    west: { x: -0.44, y: -0.08, z: 0.20 },
-    south: { x: 0.04, y: -0.205, z: 0.20 },
-    approach: { x: 0.22, y: -0.205, z: 0.16 },
+    far: { x: -0.44, y: -0.04, z: HELI_CRUISE_Z },
+    wait: { x: -0.44, y: 0.16, z: HELI_CRUISE_Z },
+    north: { x: -0.36, y: 0.205, z: HELI_CRUISE_Z },
+    west: { x: -0.45, y: 0.06, z: 0.20 },
+    south: { x: -0.30, y: -0.10, z: 0.18 },
+    approach: { x: -0.24, y: -0.04, z: 0.14 },
     hover: { x: HELI_PAD_CENTER.x, y: HELI_PAD_CENTER.y, z: HELI_HOVER_Z }
 };
-const HELI_PATROL_KEYS = ["far", "wait", "north", "west"];
+const HELI_PATROL_KEYS = ["far", "west", "wait", "north"];
 const HELI_APPROACH_KEYS = ["west", "south", "approach", "hover"];
 const HELI_DEPART_KEYS = ["approach", "south", "west"];
 const HELI_FLY_SPEED = 0.08;
@@ -127,23 +134,22 @@ const HELI_ROTOR_LANDED = 0;
 const HELI_HEIGHT = 0.048;
 
 export const SCENE_OBSTACLES = [
-    { name: "logoKeepout", x: SCENE_LAYOUT.logoKeepout.x, y: SCENE_LAYOUT.logoKeepout.y, radiusX: SCENE_LAYOUT.logoKeepout.radiusX, radiusY: SCENE_LAYOUT.logoKeepout.radiusY },
-    { name: "rig", x: RIG_POSITION.x, y: RIG_POSITION.y, radiusX: 0.10, radiusY: 0.10 },
-    { name: "pumpjack", x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y, radiusX: 0.07, radiusY: 0.06 },
-    { name: "tanks", x: TANKS_POSITION.x, y: TANKS_POSITION.y, radiusX: 0.09, radiusY: 0.07 },
-    { name: "containers", x: CONTAINERS_POSITION.x, y: CONTAINERS_POSITION.y, radiusX: 0.07, radiusY: 0.06 },
-    { name: "pipesNorth", x: 0.12, y: SCENE_LAYOUT.northCorridorY, radiusX: 0.32, radiusY: 0.022 },
+    { name: "building", x: BUILDING_POSITION.x, y: BUILDING_POSITION.y, radiusX: 0.062, radiusY: 0.052 },
+    { name: "rig", x: RIG_POSITION.x, y: RIG_POSITION.y, radiusX: 0.095, radiusY: 0.095 },
+    { name: "pumpjack", x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y, radiusX: 0.065, radiusY: 0.055 },
+    { name: "tanks", x: TANKS_POSITION.x, y: TANKS_POSITION.y, radiusX: 0.085, radiusY: 0.062 },
+    { name: "containers", x: CONTAINERS_POSITION.x, y: CONTAINERS_POSITION.y, radiusX: 0.055, radiusY: 0.048 },
     { name: "lake", x: SCENE_LAYOUT.lakeKeepout.x, y: SCENE_LAYOUT.lakeKeepout.y, radiusX: SCENE_LAYOUT.lakeKeepout.radiusX, radiusY: SCENE_LAYOUT.lakeKeepout.radiusY },
-    { name: "pipesEast", x: SCENE_LAYOUT.eastCorridorX, y: 0.08, radiusX: 0.022, radiusY: 0.12 },
-    { name: "pipesTanksPump", x: 0.30, y: 0.04, radiusX: 0.03, radiusY: 0.08 },
-    { name: "pumpPanel", x: PUMPJACK_POSITION.x + 0.03, y: PUMPJACK_POSITION.y - 0.07, radiusX: 0.024, radiusY: 0.024 },
+    { name: "pipesTanksPump", x: (TANKS_POSITION.x + PUMPJACK_POSITION.x) * 0.5, y: TANKS_POSITION.y, radiusX: 0.08, radiusY: 0.022 },
+    { name: "pipesProcess", x: 0.20, y: SCENE_LAYOUT.processCorridorY, radiusX: 0.16, radiusY: 0.020 },
+    { name: "pumpPanel", x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y - 0.065, radiusX: 0.022, radiusY: 0.022 },
     { name: "helipad", x: HELI_PAD_CENTER.x, y: HELI_PAD_CENTER.y, radiusX: HELI_PAD_RADIUS, radiusY: HELI_PAD_RADIUS }
 ];
 
 export const WORK_ZONES = [
-    { name: "rig", x: RIG_POSITION.x - 0.02, y: RIG_POSITION.y - 0.07, radiusX: 0.05, radiusY: 0.035 },
-    { name: "tanks", x: TANKS_POSITION.x - 0.02, y: TANKS_POSITION.y - 0.055, radiusX: 0.05, radiusY: 0.03 },
-    { name: "pipes", x: 0.08, y: SCENE_LAYOUT.northCorridorY - 0.012, radiusX: 0.07, radiusY: 0.025 },
+    { name: "rig", x: RIG_POSITION.x - 0.04, y: RIG_POSITION.y - 0.075, radiusX: 0.05, radiusY: 0.032 },
+    { name: "tanks", x: TANKS_POSITION.x - 0.01, y: TANKS_POSITION.y - 0.058, radiusX: 0.048, radiusY: 0.028 },
+    { name: "pipes", x: 0.18, y: SCENE_LAYOUT.processCorridorY - 0.018, radiusX: 0.06, radiusY: 0.022 },
     { name: "yard", x: SCENE_LAYOUT.yard.x, y: SCENE_LAYOUT.yard.y, radiusX: SCENE_LAYOUT.yard.radiusX, radiusY: SCENE_LAYOUT.yard.radiusY }
 ];
 
@@ -186,26 +192,26 @@ const RIG_INSPECT_POINTS = [
     new THREE.Vector3(RIG_POSITION.x - 0.12, RIG_POSITION.y + 0.01, 0)
 ];
 const PUMPJACK_PANEL_POSITION = {
-    x: PUMPJACK_POSITION.x + 0.03,
-    y: PUMPJACK_POSITION.y - 0.07,
+    x: PUMPJACK_POSITION.x,
+    y: PUMPJACK_POSITION.y - 0.065,
     z: 0
 };
 const PUMPJACK_PANEL_STAND = new THREE.Vector3(
-    PUMPJACK_PANEL_POSITION.x - 0.007,
-    PUMPJACK_PANEL_POSITION.y - 0.023,
+    PUMPJACK_PANEL_POSITION.x,
+    PUMPJACK_PANEL_POSITION.y - 0.024,
     0
 );
-const PUMPJACK_INSPECT = new THREE.Vector3(PUMPJACK_POSITION.x, PUMPJACK_POSITION.y - 0.08, 0);
+const PUMPJACK_INSPECT = new THREE.Vector3(PUMPJACK_POSITION.x + 0.035, PUMPJACK_POSITION.y - 0.055, 0);
 
 const PUMP_INLET_CONNECTION = { x: PUMPJACK_POSITION.x - 0.042, y: PUMPJACK_POSITION.y };
-const PUMP_OUTLET_CONNECTION = { x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y + 0.014 };
-const RIG_PROCESS_CONNECTION = { x: RIG_POSITION.x + 0.084, y: RIG_POSITION.y - 0.006 };
+const PUMP_OUTLET_CONNECTION = { x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y - 0.016 };
+const RIG_PROCESS_CONNECTION = { x: RIG_POSITION.x - 0.082, y: RIG_POSITION.y - 0.004 };
 
 const TANK_OUTLET_CONNECTIONS = {
-    east: { x: TANKS_POSITION.x + 0.056, y: TANKS_POSITION.y, dir: { x: 1, y: 0 } },
-    northWest: { x: TANKS_POSITION.x - 0.038, y: TANKS_POSITION.y + 0.022, dir: { x: 0, y: 1 } },
-    northMid: { x: TANKS_POSITION.x, y: TANKS_POSITION.y + 0.022, dir: { x: 0, y: 1 } },
-    northEast: { x: TANKS_POSITION.x + 0.038, y: TANKS_POSITION.y + 0.022, dir: { x: 0, y: 1 } }
+    east: { x: TANKS_POSITION.x + 0.052, y: TANKS_POSITION.y, dir: { x: 1, y: 0 } },
+    northWest: { x: TANKS_POSITION.x - 0.034, y: TANKS_POSITION.y + 0.020, dir: { x: 0, y: 1 } },
+    northMid: { x: TANKS_POSITION.x, y: TANKS_POSITION.y + 0.020, dir: { x: 0, y: 1 } },
+    northEast: { x: TANKS_POSITION.x + 0.034, y: TANKS_POSITION.y + 0.020, dir: { x: 0, y: 1 } }
 };
 
 const PIPE_STUBS = [
@@ -214,8 +220,8 @@ const PIPE_STUBS = [
     { from: TANK_OUTLET_CONNECTIONS.northMid, inward: { x: 0, y: -1 } },
     { from: TANK_OUTLET_CONNECTIONS.northEast, inward: { x: 0, y: -1 } },
     { from: PUMP_INLET_CONNECTION, inward: { x: 1, y: 0 } },
-    { from: PUMP_OUTLET_CONNECTION, inward: { x: 0, y: -1 } },
-    { from: RIG_PROCESS_CONNECTION, inward: { x: -1, y: 0 }, length: 0.016 }
+    { from: PUMP_OUTLET_CONNECTION, inward: { x: 0, y: 1 } },
+    { from: RIG_PROCESS_CONNECTION, inward: { x: 1, y: 0 }, length: 0.016 }
 ];
 
 const PIPE_LINES = [
@@ -241,13 +247,28 @@ const PIPE_LINES = [
         name: "pumpToRig",
         points: [
             PUMP_OUTLET_CONNECTION,
-            { x: SCENE_LAYOUT.eastCorridorX, y: PUMP_OUTLET_CONNECTION.y },
-            { x: SCENE_LAYOUT.eastCorridorX, y: SCENE_LAYOUT.northCorridorY },
-            { x: RIG_PROCESS_CONNECTION.x, y: SCENE_LAYOUT.northCorridorY },
+            { x: PUMP_OUTLET_CONNECTION.x, y: SCENE_LAYOUT.processCorridorY },
+            { x: RIG_PROCESS_CONNECTION.x, y: SCENE_LAYOUT.processCorridorY },
             RIG_PROCESS_CONNECTION
         ]
     }
 ];
+
+const BUILDING_DOOR_APPROACH = new THREE.Vector3(
+    BUILDING_POSITION.x,
+    BUILDING_POSITION.y - 0.078,
+    0
+);
+const BUILDING_INSIDE = new THREE.Vector3(
+    BUILDING_POSITION.x,
+    BUILDING_POSITION.y - 0.016,
+    0
+);
+const BUILDING_LEAVE_POINT = new THREE.Vector3(
+    BUILDING_POSITION.x + 0.06,
+    BUILDING_POSITION.y - 0.088,
+    0
+);
 
 const BIRD_MIN_Z = 0.16;
 
@@ -260,10 +281,10 @@ const BIRD_ROUTES = [
         turnSpeed: 3.2,
         pingPong: true,
         points: [
-            { x: -0.42, y: 0.18, z: 0.18 },
-            { x: -0.16, y: 0.20, z: 0.20 },
-            { x: 0.12, y: 0.20, z: 0.19 },
-            { x: 0.38, y: 0.16, z: 0.18 }
+            { x: -0.44, y: 0.205, z: 0.18 },
+            { x: -0.16, y: 0.205, z: 0.20 },
+            { x: 0.14, y: 0.205, z: 0.19 },
+            { x: 0.42, y: 0.18, z: 0.18 }
         ]
     },
     {
@@ -274,10 +295,10 @@ const BIRD_ROUTES = [
         turnSpeed: 2.6,
         pingPong: true,
         points: [
-            { x: -0.44, y: 0.10, z: 0.16 },
-            { x: -0.38, y: 0.18, z: 0.17 },
-            { x: -0.30, y: 0.12, z: 0.16 },
-            { x: -0.40, y: 0.02, z: 0.15 }
+            { x: -0.46, y: 0.08, z: 0.16 },
+            { x: -0.44, y: 0.18, z: 0.17 },
+            { x: -0.42, y: 0.00, z: 0.16 },
+            { x: -0.46, y: -0.10, z: 0.15 }
         ]
     },
     {
@@ -288,10 +309,10 @@ const BIRD_ROUTES = [
         turnSpeed: 3.8,
         pingPong: true,
         points: [
-            { x: -0.16, y: 0.16, z: 0.17 },
-            { x: -0.04, y: 0.18, z: 0.18 },
-            { x: 0.08, y: 0.16, z: 0.17 },
-            { x: -0.06, y: 0.14, z: 0.16 }
+            { x: -0.14, y: 0.04, z: 0.17 },
+            { x: 0.00, y: 0.06, z: 0.18 },
+            { x: 0.14, y: 0.04, z: 0.17 },
+            { x: 0.00, y: -0.08, z: 0.16 }
         ]
     },
     {
@@ -302,9 +323,9 @@ const BIRD_ROUTES = [
         turnSpeed: 2.4,
         pingPong: true,
         points: [
-            { x: 0.38, y: 0.02, z: 0.16 },
-            { x: 0.42, y: 0.08, z: 0.17 },
-            { x: 0.40, y: 0.14, z: 0.16 }
+            { x: 0.42, y: -0.04, z: 0.16 },
+            { x: 0.44, y: 0.06, z: 0.17 },
+            { x: 0.42, y: -0.12, z: 0.16 }
         ]
     },
     {
@@ -315,9 +336,9 @@ const BIRD_ROUTES = [
         turnSpeed: 3.0,
         pingPong: true,
         points: [
-            { x: -0.44, y: -0.04, z: 0.15 },
-            { x: -0.40, y: -0.14, z: 0.16 },
-            { x: -0.18, y: -0.18, z: 0.15 }
+            { x: -0.44, y: -0.06, z: 0.15 },
+            { x: -0.40, y: -0.16, z: 0.16 },
+            { x: -0.22, y: -0.18, z: 0.15 }
         ]
     },
     {
@@ -328,15 +349,14 @@ const BIRD_ROUTES = [
         turnSpeed: 2.8,
         pingPong: false,
         points: [
-            { x: -0.44, y: -0.06, z: 0.17 },
-            { x: -0.36, y: 0.12, z: 0.18 },
-            { x: -0.10, y: 0.20, z: 0.19 },
-            { x: 0.16, y: 0.20, z: 0.18 },
-            { x: 0.42, y: 0.10, z: 0.17 },
-            { x: 0.42, y: -0.08, z: 0.16 },
-            { x: 0.16, y: -0.20, z: 0.15 },
-            { x: -0.14, y: -0.20, z: 0.16 },
-            { x: -0.36, y: -0.10, z: 0.17 }
+            { x: -0.44, y: -0.08, z: 0.17 },
+            { x: -0.42, y: 0.10, z: 0.18 },
+            { x: -0.10, y: 0.205, z: 0.19 },
+            { x: 0.20, y: 0.205, z: 0.18 },
+            { x: 0.44, y: 0.08, z: 0.17 },
+            { x: 0.42, y: -0.10, z: 0.16 },
+            { x: 0.12, y: -0.20, z: 0.15 },
+            { x: -0.16, y: -0.20, z: 0.16 }
         ]
     }
 ];
@@ -408,15 +428,16 @@ const WORKER_SPAWNS = [
         role: "patrol",
         workZone: "yard",
         stationed: false,
+        buildingVisitor: true,
         position: { x: SCENE_LAYOUT.yard.x, y: SCENE_LAYOUT.yard.y, z: 0 },
         speed: 0.04,
         phase: 0.2,
         scale: 0.98,
         waypoints: [
             new THREE.Vector3(SCENE_LAYOUT.yard.x, SCENE_LAYOUT.yard.y, 0),
-            new THREE.Vector3(TANKS_POSITION.x - 0.08, TANKS_POSITION.y - 0.05, 0),
-            new THREE.Vector3(RIG_POSITION.x + 0.12, RIG_POSITION.y - 0.04, 0),
-            new THREE.Vector3(0.10, SCENE_LAYOUT.northCorridorY - 0.045, 0)
+            new THREE.Vector3(TANKS_POSITION.x - 0.06, TANKS_POSITION.y - 0.06, 0),
+            new THREE.Vector3(BUILDING_POSITION.x + 0.08, BUILDING_POSITION.y - 0.08, 0),
+            new THREE.Vector3(0.16, SCENE_LAYOUT.processCorridorY - 0.028, 0)
         ]
     },
     {
@@ -438,7 +459,7 @@ const WORKER_SPAWNS = [
         role: "pipeWork",
         workZone: "pipes",
         stationed: true,
-        position: { x: 0.08, y: SCENE_LAYOUT.northCorridorY - 0.012, z: 0 },
+        position: { x: 0.18, y: SCENE_LAYOUT.processCorridorY - 0.018, z: 0 },
         yaw: Math.PI * 0.5,
         speed: 0,
         phase: 0.8,
@@ -452,14 +473,14 @@ const WORKER_SPAWNS = [
         role: "fieldPatrol",
         workZone: "yard",
         stationed: false,
-        position: { x: -0.46, y: -0.10, z: 0 },
+        position: { x: -0.16, y: -0.12, z: 0 },
         speed: 0.036,
         phase: 2.8,
         scale: 1.05,
         waypoints: [
-            new THREE.Vector3(-0.46, -0.10, 0),
-            new THREE.Vector3(-0.44, -0.18, 0),
-            new THREE.Vector3(-0.46, 0.02, 0)
+            new THREE.Vector3(-0.16, -0.12, 0),
+            new THREE.Vector3(-0.28, -0.18, 0),
+            new THREE.Vector3(0.08, -0.16, 0)
         ]
     },
     {
@@ -469,7 +490,7 @@ const WORKER_SPAWNS = [
         stationed: false,
         climber: false,
         pumpOperator: true,
-        position: { x: PUMPJACK_POSITION.x + 0.02, y: PUMPJACK_POSITION.y - 0.08, z: 0 },
+        position: { x: PUMPJACK_POSITION.x, y: PUMPJACK_POSITION.y - 0.092, z: 0 },
         yaw: 0,
         speed: 0.034,
         phase: 1.6,
@@ -483,14 +504,14 @@ const WORKER_SPAWNS = [
         role: "northPatrol",
         workZone: "yard",
         stationed: false,
-        position: { x: -0.06, y: 0.148, z: 0 },
+        position: { x: 0.06, y: 0.036, z: 0 },
         speed: 0.033,
         phase: 0.55,
         scale: 0.96,
         waypoints: [
-            new THREE.Vector3(-0.06, 0.148, 0),
-            new THREE.Vector3(-0.18, 0.148, 0),
-            new THREE.Vector3(0.06, 0.148, 0)
+            new THREE.Vector3(0.06, 0.036, 0),
+            new THREE.Vector3(-0.12, 0.034, 0),
+            new THREE.Vector3(0.16, 0.034, 0)
         ]
     }
 ];
@@ -511,6 +532,10 @@ let rigTerminalFx = null;
 let pumpjackTerminalFx = null;
 let helicopterRoot = null;
 let heliPadLightMat = null;
+let buildingRoot = null;
+let buildingDoor = null;
+let buildingDoorOpen = 0;
+let activeBuildingWorker = null;
 const interactiveObjects = [];
 
 function markInteractive(object, type, title, description) {
@@ -624,6 +649,44 @@ export function requestHeliLandingDemo() {
     data.patrolIndex = 0;
     data.rotorTarget = HELI_ROTOR_FLY;
     data.demoReturn = false;
+    return true;
+}
+
+function isBuildingVisitActive() {
+    const worker = workerInstances.find((item) => item.userData.buildingVisitor);
+    if (!worker) {
+        return false;
+    }
+
+    const state = worker.userData.buildingVisitState;
+    return Boolean(activeBuildingWorker)
+        || (state && state !== "idle");
+}
+
+export function isBuildingDemoRunning() {
+    return isBuildingVisitActive();
+}
+
+export function requestBuildingWorkDemo() {
+    const worker = workerInstances.find((item) => item.userData.buildingVisitor);
+    if (!worker) {
+        return false;
+    }
+
+    if (isBuildingVisitActive()) {
+        return false;
+    }
+
+    if (worker.userData.climber && isRigWorkCycleActive()) {
+        return false;
+    }
+
+    worker.userData.buildingVisitState = "approachDoor";
+    worker.userData.buildingVisitWait = 0;
+    worker.userData.pauseTimer = 0;
+    worker.userData.interactHold = 0;
+    worker.visible = true;
+    activeBuildingWorker = worker;
     return true;
 }
 
@@ -1430,8 +1493,10 @@ function createWorkerInstance(config) {
     root.userData.workTimer = config.stationed ? root.userData.workDuration : 0;
     root.userData.climber = Boolean(config.climber);
     root.userData.pumpOperator = Boolean(config.pumpOperator);
+    root.userData.buildingVisitor = Boolean(config.buildingVisitor);
     root.userData.climbState = config.climber ? "idle" : null;
     root.userData.pumpState = config.pumpOperator ? "idle" : null;
+    root.userData.buildingVisitState = config.buildingVisitor ? "idle" : null;
     root.userData.climbIndex = 0;
     root.userData.climbT = 0;
     root.userData.climbWait = config.climber
@@ -1907,11 +1972,121 @@ function updatePumpOperator(worker, delta) {
     return false;
 }
 
+function finishBuildingVisit(worker) {
+    const data = worker.userData;
+    data.buildingVisitState = "idle";
+    data.mode = "idle";
+    data.pauseTimer = 1.2;
+    data.buildingVisitWait = 0;
+    worker.visible = true;
+    if (activeBuildingWorker === worker) {
+        activeBuildingWorker = null;
+    }
+}
+
+function setBuildingDoorTarget(open) {
+    if (!buildingDoor) {
+        return;
+    }
+    buildingDoor.userData.targetOpen = open ? 1 : 0;
+}
+
+function updateBuildingVisitor(worker, delta) {
+    const data = worker.userData;
+    const state = data.buildingVisitState;
+
+    if (!state || state === "idle") {
+        return false;
+    }
+
+    if (state === "approachDoor") {
+        data.mode = "walk";
+        worker.visible = true;
+        if (walkToward(worker, BUILDING_DOOR_APPROACH, delta, data.speed, false)) {
+            data.buildingVisitState = "openDoor";
+            data.buildingVisitWait = 0.7;
+            worker.rotation.z = getFacingYaw(worker.position, BUILDING_INSIDE);
+            setBuildingDoorTarget(true);
+        }
+        return true;
+    }
+
+    if (state === "openDoor") {
+        data.mode = "idle";
+        data.buildingVisitWait -= delta;
+        if (data.buildingVisitWait <= 0) {
+            data.buildingVisitState = "enter";
+            data.mode = "walk";
+        }
+        return true;
+    }
+
+    if (state === "enter") {
+        data.mode = "walk";
+        if (walkToward(worker, BUILDING_INSIDE, delta, data.speed * 0.85, false)) {
+            worker.visible = false;
+            data.buildingVisitState = "inside";
+            data.buildingVisitWait = 3.4;
+            data.mode = "idle";
+            setBuildingDoorTarget(false);
+        }
+        return true;
+    }
+
+    if (state === "inside") {
+        data.mode = "idle";
+        worker.visible = false;
+        data.buildingVisitWait -= delta;
+        if (data.buildingVisitWait <= 0) {
+            data.buildingVisitState = "exitOpen";
+            data.buildingVisitWait = 0.65;
+            setBuildingDoorTarget(true);
+        }
+        return true;
+    }
+
+    if (state === "exitOpen") {
+        data.mode = "idle";
+        data.buildingVisitWait -= delta;
+        if (data.buildingVisitWait <= 0) {
+            worker.visible = true;
+            worker.position.copy(BUILDING_INSIDE);
+            data.buildingVisitState = "exit";
+            data.mode = "walk";
+        }
+        return true;
+    }
+
+    if (state === "exit") {
+        data.mode = "walk";
+        worker.visible = true;
+        if (walkToward(worker, BUILDING_DOOR_APPROACH, delta, data.speed, false)) {
+            data.buildingVisitState = "leave";
+            setBuildingDoorTarget(false);
+        }
+        return true;
+    }
+
+    if (state === "leave") {
+        data.mode = "walk";
+        if (walkToward(worker, BUILDING_LEAVE_POINT, delta, data.speed, false)) {
+            finishBuildingVisit(worker);
+        }
+        return true;
+    }
+
+    return false;
+}
+
 function updateWorkerMovement(worker, delta) {
     const data = worker.userData;
 
     if (data.interactHold > 0) {
         data.interactHold -= delta;
+        return;
+    }
+
+    if (data.buildingVisitor && updateBuildingVisitor(worker, delta)) {
         return;
     }
 
@@ -2539,7 +2714,7 @@ function createPipes() {
         );
     });
 
-    const valve = mapToLocal(0.08, SCENE_LAYOUT.northCorridorY, pipeCenterY);
+    const valve = mapToLocal(0.18, SCENE_LAYOUT.processCorridorY, pipeCenterY);
     addPart(visual, geo.box, mat.yellow, valve.x, valve.y + 0.01, valve.z, 0.014, 0.012, 0.02);
     addPart(visual, geo.cylLow, mat.steelDark, valve.x, valve.y + 0.018, valve.z, 0.005, 0.01, 0.005);
 
@@ -2828,6 +3003,124 @@ function updateHelicopter(delta) {
     }
 }
 
+function createOfficeBuildingMesh() {
+    const { geo, mat } = getKit();
+    const visual = new THREE.Group();
+    visual.name = "officeBuildingMesh";
+
+    addPart(visual, geo.box, mat.concrete, 0, 0.008, 0, 0.22, 0.016, 0.18);
+    addPart(visual, geo.box, mat.steelDark, 0, 0.056, 0, 0.20, 0.088, 0.16);
+    addPart(visual, geo.box, mat.steel, 0, 0.104, 0, 0.212, 0.012, 0.172);
+    addPart(visual, geo.box, mat.yellow, 0, 0.100, 0.084, 0.20, 0.006, 0.004);
+    addPart(visual, geo.box, mat.yellow, 0, 0.018, 0.084, 0.20, 0.006, 0.004);
+    addPart(visual, geo.box, mat.steelLight, 0, 0.082, 0.108, 0.11, 0.008, 0.055);
+    addPart(visual, geo.box, mat.steelDark, -0.052, 0.05, 0.108, 0.008, 0.05, 0.04);
+    addPart(visual, geo.box, mat.steelDark, 0.052, 0.05, 0.108, 0.008, 0.05, 0.04);
+
+    addPart(visual, geo.box, mat.panelScreen, -0.054, 0.062, 0.082, 0.042, 0.028, 0.004);
+    addPart(visual, geo.box, mat.panelScreen, 0.054, 0.062, 0.082, 0.042, 0.028, 0.004);
+    addPart(visual, geo.box, mat.reflect, -0.054, 0.062, 0.084, 0.038, 0.004, 0.002);
+    addPart(visual, geo.box, mat.reflect, 0.054, 0.062, 0.084, 0.038, 0.004, 0.002);
+
+    addBrandPlaque(visual, 0, 0.090, 0.086, 0, 0, 0, 0.72);
+    addBrandMark(visual, -0.078, 0.072, 0.082, 0.9);
+
+    addPart(visual, geo.cylLow, mat.steelLight, 0.062, 0.122, -0.03, 0.012, 0.022, 0.012);
+    addPart(visual, geo.box, mat.yellow, -0.07, 0.114, 0.03, 0.03, 0.008, 0.018);
+    addPart(visual, geo.box, mat.steelLight, 0.00, 0.118, -0.06, 0.04, 0.01, 0.03);
+
+    const door = new THREE.Group();
+    door.name = "buildingDoor";
+    door.position.set(-0.018, 0.040, 0.082);
+    addPart(door, geo.box, mat.steel, 0.018, 0, 0, 0.036, 0.072, 0.008);
+    addPart(door, geo.box, mat.yellow, 0.018, 0.028, 0.005, 0.036, 0.006, 0.002);
+    addPart(door, geo.box, mat.reflect, 0.030, -0.006, 0.005, 0.008, 0.01, 0.002);
+    door.userData.targetOpen = 0;
+    visual.add(door);
+    buildingDoor = door;
+    buildingDoorOpen = 0;
+
+    return visual;
+}
+
+function createOfficeBuilding() {
+    if (buildingRoot) {
+        return buildingRoot;
+    }
+
+    const visual = createOfficeBuildingMesh();
+    placeYUpByFootprint(visual, SCENE_LAYOUT.buildingFootprint);
+    buildingRoot = createPlacedGroup(visual, BUILDING_POSITION, SCENE_LAYOUT.buildingYaw);
+    buildingRoot.name = "officeBuilding";
+    markInteractive(
+        buildingRoot,
+        "building",
+        "Производственный модуль",
+        "Служебное здание промысла: здесь сотрудники получают информацию, работают с оборудованием и координируют работу объекта."
+    );
+    return buildingRoot;
+}
+
+function createYardCrate() {
+    const { geo, mat } = getKit();
+    const visual = new THREE.Group();
+    addPart(visual, geo.box, mat.steelDark, 0, 0.018, 0, 0.055, 0.036, 0.04);
+    addPart(visual, geo.box, mat.yellow, 0, 0.037, 0, 0.055, 0.004, 0.04);
+    addPart(visual, geo.box, mat.steelLight, 0.018, 0.02, 0.022, 0.01, 0.01, 0.004);
+    return visual;
+}
+
+function createYardGenerator() {
+    const { geo, mat } = getKit();
+    const visual = new THREE.Group();
+    addPart(visual, geo.box, mat.steelDark, 0, 0.022, 0, 0.06, 0.044, 0.038);
+    addPart(visual, geo.cylLow, mat.steelLight, 0.018, 0.048, 0, 0.012, 0.016, 0.012);
+    addPart(visual, geo.box, mat.yellow, 0, 0.012, 0.021, 0.05, 0.008, 0.004);
+    addPart(visual, geo.box, mat.orange, -0.02, 0.04, 0.016, 0.01, 0.01, 0.006);
+    return visual;
+}
+
+function createYardSpotlight() {
+    const { geo, mat } = getKit();
+    const visual = new THREE.Group();
+    addPart(visual, geo.cylLow, mat.steelDark, 0, 0.04, 0, 0.008, 0.08, 0.008);
+    addPart(visual, geo.box, mat.steel, 0, 0.086, 0.012, 0.028, 0.016, 0.02);
+    addPart(visual, geo.cone, mat.yellow, 0, 0.082, 0.028, 0.018, 0.012, 0.018, Math.PI / 2, 0, 0);
+    return visual;
+}
+
+function createSouthYard() {
+    const root = new THREE.Group();
+    root.name = "southYard";
+
+    SCENE_LAYOUT.southProps.forEach((prop) => {
+        let visual;
+        if (prop.kind === "generator") {
+            visual = createYardGenerator();
+            placeYUpByHeight(visual, 0.038);
+        } else if (prop.kind === "spotlight") {
+            visual = createYardSpotlight();
+            placeYUpByHeight(visual, 0.055);
+        } else {
+            visual = createYardCrate();
+            placeYUpByHeight(visual, 0.028);
+        }
+        root.add(createPlacedGroup(visual, { x: prop.x, y: prop.y, z: 0 }, prop.yaw));
+    });
+
+    return root;
+}
+
+function updateBuildingDoor(delta) {
+    if (!buildingDoor) {
+        return;
+    }
+
+    const target = buildingDoor.userData.targetOpen || 0;
+    buildingDoorOpen += (target - buildingDoorOpen) * Math.min(1, delta * 6.5);
+    buildingDoor.rotation.y = -1.15 * buildingDoorOpen;
+}
+
 function createServiceRoad() {
     const { geo, mat } = getKit();
     const visual = new THREE.Group();
@@ -2959,8 +3252,7 @@ function isInsideHeliZone(x, y) {
 }
 
 function isInsideLayoutKeepout(x, y, extra = 0) {
-    return isInsideObstacle(x, y, SCENE_LAYOUT.logoKeepout, extra)
-        || isInsideObstacle(x, y, SCENE_LAYOUT.lakeKeepout, extra);
+    return isInsideObstacle(x, y, SCENE_LAYOUT.lakeKeepout, extra);
 }
 
 function isSnowSpotFree(x, y) {
@@ -3257,6 +3549,8 @@ export function createProceduralSite() {
         createPipes(),
         createContainers(),
         createFences(),
+        createOfficeBuilding(),
+        createSouthYard(),
         createServiceRoad(),
         createHeliPad(),
         createHelicopter(),
@@ -3283,6 +3577,7 @@ export function updateSiteAnimation(elapsedTime, delta = 0.016) {
         heliPadLightMat.emissiveIntensity = (elapsedTime % 1.6) < 0.8 ? 0.95 : 0.18;
     }
 
+    updateBuildingDoor(delta);
     updateHelicopter(delta);
 }
 

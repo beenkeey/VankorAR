@@ -8,13 +8,15 @@
 import * as THREE from "three";
 import {
     getInteractiveObjects,
+    isBuildingDemoRunning,
     isHeliDemoRunning,
     isPumpjackDemoRunning,
     isRigDemoRunning,
+    requestBuildingWorkDemo,
     requestHeliLandingDemo,
     requestPumpjackWorkDemo,
     requestRigWorkDemo
-} from "./procedural-scene.js?v=15";
+} from "./procedural-scene.js?v=16";
 
 const raycaster = new THREE.Raycaster();
 const pointerNdc = new THREE.Vector2();
@@ -30,6 +32,7 @@ let bound = false;
 
 const ACTION_IDLE_LABEL = "Показать, как работает";
 const ACTION_HELI_LABEL = "Показать посадку";
+const ACTION_BUILDING_LABEL = "Показать работу";
 const ACTION_BUSY_LABEL = "Демонстрация выполняется…";
 
 const card = {
@@ -145,9 +148,15 @@ function syncActionButton() {
             ? isPumpjackDemoRunning()
             : type === "helicopter"
                 ? isHeliDemoRunning()
-                : false;
+                : type === "building"
+                    ? isBuildingDemoRunning()
+                    : false;
 
-    const idleLabel = type === "helicopter" ? ACTION_HELI_LABEL : ACTION_IDLE_LABEL;
+    const idleLabel = type === "helicopter"
+        ? ACTION_HELI_LABEL
+        : type === "building"
+            ? ACTION_BUILDING_LABEL
+            : ACTION_IDLE_LABEL;
     card.action.textContent = busy ? ACTION_BUSY_LABEL : idleLabel;
 }
 
@@ -160,14 +169,16 @@ function showCard(object) {
     card.description.textContent = object.userData.description || "";
 
     const showSiteBadge = object.userData.interactiveType === "rig"
-        || object.userData.interactiveType === "pumpjack";
+        || object.userData.interactiveType === "pumpjack"
+        || object.userData.interactiveType === "building";
     if (card.badge) {
         card.badge.classList.toggle("hidden", !showSiteBadge);
     }
 
     const showAction = object.userData.interactiveType === "rig"
         || object.userData.interactiveType === "pumpjack"
-        || object.userData.interactiveType === "helicopter";
+        || object.userData.interactiveType === "helicopter"
+        || object.userData.interactiveType === "building";
     card.action.classList.toggle("hidden", !showAction);
     syncActionButton();
     card.root.classList.remove("hidden");
@@ -335,6 +346,12 @@ function onActionClick(event) {
 
     if (selectedObject.userData.interactiveType === "helicopter") {
         requestHeliLandingDemo();
+        syncActionButton();
+        return;
+    }
+
+    if (selectedObject.userData.interactiveType === "building") {
+        requestBuildingWorkDemo();
         syncActionButton();
     }
 }
